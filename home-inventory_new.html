@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>家物清单 · 家庭物品存放管理</title>
+<style>
+  :root{
+    --paper:#F1EEE6; --card:#FFFFFF; --ink:#2B2620; --ink-soft:#7A7266;
+    --border:#E1DACB; --rust:#B5654A; --rust-dark:#914F3B;
+    --sage:#5F7A5C; --sage-bg:#E7EEE3;
+    --slate:#526B85; --slate-bg:#E5EBF1;
+    --dust:#8A8072; --dust-bg:#ECE8DF;
+    --font-display: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --font-body: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);-webkit-tap-highlight-color:transparent;padding-bottom:90px;}
+  .app{max-width:980px;margin:0 auto;padding:22px 16px 40px;}
+
+  header{margin-bottom:18px;}
+  header .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);}
+  header h1{font-family:var(--font-display);font-size:26px;margin:4px 0 4px;}
+  header p{color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin:0;max-width:640px;}
+
+  .stats-row{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;}
+  .stat-chip{
+    background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 14px;
+    font-size:12.5px;color:var(--ink-soft);
+  }
+  .stat-chip b{color:var(--ink);font-size:15px;font-family:var(--font-mono);margin-right:4px;}
+
+  .toolbar{
+    display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;
+    background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;
+  }
+  .toolbar select, .toolbar input[type=text]{
+    padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#FBFAF7;color:var(--ink);
+  }
+  .toolbar input[type=text]{flex:1;min-width:120px;}
+  .btn{
+    font-family:var(--font-body);cursor:pointer;border:none;border-radius:9px;font-size:13.5px;font-weight:600;
+    padding:9px 14px;min-height:38px;touch-action:manipulation;
+  }
+  .btn-rust{background:var(--rust);color:#fff;}
+  .btn-rust:active{background:var(--rust-dark);}
+  .btn-ghost{background:#FBFAF7;color:var(--ink);border:1px solid var(--border) !important;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;}
+  .item-card{
+    background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;
+    display:flex;flex-direction:column;cursor:pointer;
+  }
+  .item-photo{width:100%;aspect-ratio:1/1;background:#EDE9DF center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:12px;}
+  .item-body{padding:10px 12px 12px;}
+  .item-name{font-size:14px;font-weight:700;line-height:1.3;margin-bottom:4px;}
+  .item-meta{font-size:11.5px;color:var(--ink-soft);line-height:1.5;}
+  .badge-row{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;}
+  .badge{font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600;}
+  .badge-status-in_place{background:var(--sage-bg);color:var(--sage);}
+  .badge-status-moved{background:var(--slate-bg);color:var(--slate);}
+  .badge-status-discarded{background:var(--dust-bg);color:var(--dust);text-decoration:line-through;}
+  .badge-qty{background:#F3EEE2;color:var(--ink-soft);}
+
+  .empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--ink-soft);font-size:14px;}
+  .empty b{display:block;font-family:var(--font-display);font-size:18px;color:var(--ink);margin-bottom:6px;font-weight:normal;}
+
+  .fab{
+    position:fixed;right:18px;bottom:18px;z-index:20;
+    background:var(--rust);color:#fff;border:none;border-radius:28px;
+    padding:14px 20px;font-size:14px;font-weight:700;box-shadow:0 6px 18px rgba(181,101,74,0.4);
+    display:flex;align-items:center;gap:8px;cursor:pointer;
+  }
+
+  .overlay{position:fixed;inset:0;background:rgba(30,26,20,0.45);z-index:39;display:none;}
+  .overlay.show{display:block;}
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;top:6%;z-index:40;background:var(--card);
+    border-radius:20px 20px 0 0;display:none;flex-direction:column;max-width:640px;margin:0 auto;
+  }
+  .sheet.show{display:flex;}
+  .sheet-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--border);}
+  .sheet-head h2{font-family:var(--font-display);font-size:18px;margin:0;font-weight:normal;}
+  .sheet-head button{background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;padding:4px 8px;}
+  .sheet-body{flex:1;overflow-y:auto;padding:18px;}
+  .sheet-foot{padding:14px 18px;border-top:1px solid var(--border);display:flex;gap:10px;}
+  .sheet-foot .btn{flex:1;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;font-weight:600;}
+  .field input[type=text], .field input[type=number], .field select, .field textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:14px;background:#FBFAF7;color:var(--ink);
+  }
+  .field textarea{resize:vertical;min-height:56px;}
+  .row2{display:flex;gap:10px;}
+  .row2 .field{flex:1;}
+
+  .photo-picker{
+    border:1.5px dashed var(--border);border-radius:12px;padding:16px;text-align:center;
+    background:#FBFAF7;margin-bottom:14px;
+  }
+  .photo-btn-row{display:flex;gap:8px;margin-top:10px;}
+  .photo-btn-row .btn{flex:1;}
+  .photo-picker img{max-width:100%;max-height:180px;border-radius:8px;}
+  .photo-picker .ph-label{font-size:13px;color:var(--ink-soft);}
+  input[type=file]{display:none;}
+
+  .status-toggle{display:flex;gap:8px;}
+  .status-btn{
+    flex:1;padding:9px;border-radius:9px;border:1px solid var(--border);background:#FBFAF7;
+    font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;text-align:center;
+  }
+  .status-btn.active-in_place{background:var(--sage-bg);color:var(--sage);border-color:var(--sage);}
+  .status-btn.active-moved{background:var(--slate-bg);color:var(--slate);border-color:var(--slate);}
+  .status-btn.active-discarded{background:var(--dust-bg);color:var(--dust);border-color:var(--dust);}
+
+  .history-list{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+  .history-list div{padding:4px 0;border-top:1px solid var(--border);}
+  .history-list div:first-child{border-top:none;}
+
+  .export-modal .field{margin-bottom:10px;}
+  .export-note{font-size:12px;color:var(--ink-soft);line-height:1.6;margin-top:10px;}
+
+  .toast{
+    position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:60;
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:24px;font-size:13px;
+    display:none;box-shadow:0 6px 18px rgba(0,0,0,0.25);
+  }
+  .toast.show{display:block;}
+  [hidden]{display:none !important;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="eyebrow">Home Inventory Ledger</div>
+    <h1>家物清单</h1>
+    <p>拍照记录家里的物品：数量、房间、类型。移动了改位置，丢弃了标记丢弃，随时导出带缩略图的 Excel 表格管理。</p>
+  </header>
+
+  <div class="stats-row" id="statsRow"></div>
+
+  <div class="toolbar">
+    <select id="filterRoom"><option value="">全部房间</option></select>
+    <select id="filterCategory"><option value="">全部类型</option></select>
+    <select id="filterStatus">
+      <option value="">全部状态</option>
+      <option value="in_place">在位</option>
+      <option value="moved">已移动</option>
+      <option value="discarded">已丢弃</option>
+    </select>
+    <input type="text" id="searchBox" placeholder="搜索物品名称…">
+    <button class="btn btn-ghost" id="exportBtn">导出 Excel</button>
+    <button class="btn btn-ghost" id="backupBtn">备份数据</button>
+    <input type="file" id="importFile" accept=".json" hidden>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<button class="fab" id="addFab">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+  记录物品
+</button>
+
+<div class="overlay" id="overlay"></div>
+
+<!-- 添加/编辑 弹层 -->
+<div class="sheet" id="itemSheet">
+  <div class="sheet-head">
+    <h2 id="sheetTitle">记录新物品</h2>
+    <button id="closeSheet">×</button>
+  </div>
+  <div class="sheet-body">
+    <div class="photo-picker" id="photoPicker">
+      <div id="photoPreviewWrap"><div class="ph-label">还没有照片</div></div>
+      <div class="photo-btn-row">
+        <button type="button" class="btn btn-ghost" id="btnTakePhoto">📷 拍照</button>
+        <button type="button" class="btn btn-ghost" id="btnPickPhoto">🖼 从相册选择</button>
+      </div>
+      <input type="file" id="photoInputCamera" accept="image/*" capture="environment" hidden>
+      <input type="file" id="photoInputLibrary" accept="image/*" hidden>
+    </div>
+
+    <div class="field">
+      <label>物品名称</label>
+      <input type="text" id="fName" placeholder="例如：电饭煲">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>数量</label>
+        <input type="number" id="fQty" value="1" min="0">
+      </div>
+      <div class="field">
+        <label>房间</label>
+        <input type="text" id="fRoom" list="roomList" placeholder="例如：厨房">
+        <datalist id="roomList"></datalist>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>类型</label>
+        <input type="text" id="fCategory" list="categoryList" placeholder="例如：厨具">
+        <datalist id="categoryList"></datalist>
+      </div>
+      <div class="field">
+        <label>具体位置（可选）</label>
+        <input type="text" id="fLocationDetail" placeholder="例如：橱柜第二层">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>状态</label>
+      <div class="status-toggle">
+        <div class="status-btn" data-status="in_place">在位</div>
+        <div class="status-btn" data-status="moved">已移动</div>
+        <div class="status-btn" data-status="discarded">已丢弃</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>备注</label>
+      <textarea id="fNote" placeholder="随便记点什么…"></textarea>
+    </div>
+
+    <div class="field" id="historyField" hidden>
+      <label>变更记录</label>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn-ghost" id="deleteItemBtn" hidden>删除</button>
+    <button class="btn btn-rust" id="saveItemBtn" style="flex:2;">保存</button>
+  </div>
+</div>
+
+<!-- 导出弹层 -->
+<div class="sheet" id="exportSheet" style="top:auto;height:auto;bottom:0;border-radius:20px 20px 0 0;">
+  <div class="sheet-head">
+    <h2>导出 Excel</h2>
+    <button id="closeExportSheet">×</button>
+  </div>
+  <div class="sheet-body export-modal">
+    <div class="field">
+      <label>导出范围</label>
+      <select id="exportScope">
+        <option value="filtered">当前筛选结果</option>
+        <option value="all">全部物品</option>
+      </select>
+    </div>
+    <div class="export-note" id="exportNote"></div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn-rust" id="doExportBtn" style="flex:1;">生成并下载</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ---------- storage wrapper ----------
+   优先用 window.storage（在 Claude 网页里打开时可用）；
+   如果没有 window.storage（比如把网页下载到本地、直接用浏览器打开），
+   改用浏览器自带的 IndexedDB 做真正的本地持久化，保证数据不会因为关闭/刷新页面而丢失。
+*/
+const memoryStore = {};
+const hasRealStorage = () => typeof window.storage !== "undefined" && window.storage !== null;
+const hasIdb = () => typeof indexedDB !== "undefined";
+
+let idbPromise = null;
+function openIdb(){
+  if (!idbPromise){
+    idbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open("home_inventory_db", 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv");
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return idbPromise;
+}
+function idbGet(key){
+  return openIdb().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction("kv","readonly");
+    const req = tx.objectStore("kv").get(key);
+    req.onsuccess = () => resolve(req.result != null ? req.result : null);
+    req.onerror = () => reject(req.error);
+  }));
+}
+function idbSet(key, value){
+  return openIdb().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction("kv","readwrite");
+    tx.objectStore("kv").put(value, key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+function idbDelete(key){
+  return openIdb().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction("kv","readwrite");
+    tx.objectStore("kv").delete(key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+function idbListKeys(prefix){
+  return openIdb().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction("kv","readonly");
+    const req = tx.objectStore("kv").getAllKeys();
+    req.onsuccess = () => resolve((req.result||[]).map(String).filter(k => k.startsWith(prefix)));
+    req.onerror = () => reject(req.error);
+  }));
+}
+
+async function storeGet(key){
+  if (hasRealStorage()){ try{ const r = await window.storage.get(key, false); return r ? r.value : null; }catch(e){ return null; } }
+  if (hasIdb()){ try{ return await idbGet(key); }catch(e){ console.error("idbGet failed", e); } }
+  return Object.prototype.hasOwnProperty.call(memoryStore,key) ? memoryStore[key] : null;
+}
+async function storeSet(key, value){
+  if (hasRealStorage()){ try{ await window.storage.set(key, value, false); return true; }catch(e){ return false; } }
+  if (hasIdb()){ try{ await idbSet(key, value); return true; }catch(e){ console.error("idbSet failed", e); } }
+  memoryStore[key] = value; return true;
+}
+async function storeDelete(key){
+  if (hasRealStorage()){ try{ await window.storage.delete(key, false); return true; }catch(e){ return false; } }
+  if (hasIdb()){ try{ await idbDelete(key); return true; }catch(e){ console.error("idbDelete failed", e); } }
+  delete memoryStore[key]; return true;
+}
+async function storeList(prefix){
+  if (hasRealStorage()){ try{ const r = await window.storage.list(prefix, false); return r ? r.keys : []; }catch(e){ return []; } }
+  if (hasIdb()){ try{ return await idbListKeys(prefix); }catch(e){ console.error("idbList failed", e); } }
+  return Object.keys(memoryStore).filter(k => k.startsWith(prefix));
+}
+
+
+function uid(){ return "it_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8); }
+function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function nowStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+
+const DEFAULT_ROOMS = ["客厅","卧室","厨房","卫生间","书房","阳台","储藏室","车库","玄关"];
+const DEFAULT_CATEGORIES = ["家具","家电","衣物","厨具","工具","书籍文件","装饰品","电子产品","杂物"];
+const STATUS_LABEL = { in_place:"在位", moved:"已移动", discarded:"已丢弃" };
+
+/* ---------- state ---------- */
+let items = [];
+let editingId = null;
+let currentPhotoDataUrl = null;
+let currentStatus = "in_place";
+let currentHistory = [];
+
+const el = {};
+["grid","statsRow","filterRoom","filterCategory","filterStatus","searchBox",
+ "exportBtn","backupBtn","importFile","addFab","overlay","itemSheet","sheetTitle","closeSheet",
+ "photoPicker","photoPreviewWrap","btnTakePhoto","btnPickPhoto","photoInputCamera","photoInputLibrary",
+ "fName","fQty","fRoom","fCategory","fLocationDetail","fNote",
+ "roomList","categoryList","historyField","historyList","deleteItemBtn","saveItemBtn",
+ "exportSheet","closeExportSheet","exportScope","exportNote","doExportBtn","toast"
+].forEach(id => el[id] = document.getElementById(id));
+
+function showToast(msg){
+  el.toast.textContent = msg;
+  el.toast.classList.add("show");
+  setTimeout(() => el.toast.classList.remove("show"), 2200);
+}
+
+/* ---------- load / persist ---------- */
+async function loadItems(){
+  const keys = await storeList("item_");
+  const arr = [];
+  for (const k of keys){
+    const raw = await storeGet(k);
+    if (raw){ try{ arr.push(JSON.parse(raw)); }catch(e){} }
+  }
+  arr.sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
+  items = arr;
+}
+async function saveItem(item){
+  await storeSet("item_" + item.id, JSON.stringify(item));
+}
+async function deleteItemStore(id){
+  await storeDelete("item_" + id);
+}
+
+/* ---------- filters / rendering ---------- */
+function uniqueValues(field){
+  const set = new Set();
+  items.forEach(it => { if (it[field]) set.add(it[field]); });
+  return Array.from(set);
+}
+
+function populateFilterOptions(){
+  const rooms = Array.from(new Set([...DEFAULT_ROOMS, ...uniqueValues("room")]));
+  const cats = Array.from(new Set([...DEFAULT_CATEGORIES, ...uniqueValues("category")]));
+
+  const curRoom = el.filterRoom.value, curCat = el.filterCategory.value;
+  el.filterRoom.innerHTML = '<option value="">全部房间</option>' + rooms.map(r=>`<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join("");
+  el.filterCategory.innerHTML = '<option value="">全部类型</option>' + cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  el.filterRoom.value = curRoom; el.filterCategory.value = curCat;
+
+  el.roomList.innerHTML = rooms.map(r=>`<option value="${escapeHtml(r)}">`).join("");
+  el.categoryList.innerHTML = cats.map(c=>`<option value="${escapeHtml(c)}">`).join("");
+}
+
+function getFiltered(){
+  const room = el.filterRoom.value, cat = el.filterCategory.value, status = el.filterStatus.value;
+  const q = el.searchBox.value.trim().toLowerCase();
+  return items.filter(it => {
+    if (room && it.room !== room) return false;
+    if (cat && it.category !== cat) return false;
+    if (status && it.status !== status) return false;
+    if (q && !(it.name||"").toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderStats(){
+  const total = items.length;
+  const inPlace = items.filter(i=>i.status==="in_place").length;
+  const moved = items.filter(i=>i.status==="moved").length;
+  const discarded = items.filter(i=>i.status==="discarded").length;
+  const totalQty = items.filter(i=>i.status!=="discarded").reduce((s,i)=>s+(Number(i.quantity)||0),0);
+  el.statsRow.innerHTML = `
+    <div class="stat-chip"><b>${total}</b>条记录</div>
+    <div class="stat-chip"><b>${totalQty}</b>件在管物品</div>
+    <div class="stat-chip"><b>${inPlace}</b>在位</div>
+    <div class="stat-chip"><b>${moved}</b>已移动</div>
+    <div class="stat-chip"><b>${discarded}</b>已丢弃</div>
+  `;
+}
+
+function renderGrid(){
+  const list = getFiltered();
+  if (list.length === 0){
+    el.grid.innerHTML = `<div class="empty"><b>还没有记录</b>点右下角"记录物品"，拍张照片开始建档。</div>`;
+    return;
+  }
+  el.grid.innerHTML = list.map(it => `
+    <div class="item-card" data-id="${it.id}">
+      <div class="item-photo" style="${it.photo ? `background-image:url('${it.photo}')` : ''}">${it.photo ? '' : '无照片'}</div>
+      <div class="item-body">
+        <div class="item-name">${escapeHtml(it.name || "未命名物品")}</div>
+        <div class="item-meta">${escapeHtml(it.room||"未设置房间")} · ${escapeHtml(it.category||"未分类")}</div>
+        <div class="badge-row">
+          <span class="badge badge-qty">×${escapeHtml(it.quantity||0)}</span>
+          <span class="badge badge-status-${it.status}">${STATUS_LABEL[it.status]||it.status}</span>
+        </div>
+      </div>
+    </div>
+  `).join("");
+
+  el.grid.querySelectorAll(".item-card").forEach(card => {
+    card.addEventListener("click", () => openEdit(card.dataset.id));
+  });
+}
+
+function renderAll(){
+  populateFilterOptions();
+  renderStats();
+  renderGrid();
+}
+
+[el.filterRoom, el.filterCategory, el.filterStatus].forEach(x => x.addEventListener("change", renderGrid));
+el.searchBox.addEventListener("input", renderGrid);
+
+/* ---------- add / edit sheet ---------- */
+function resetForm(){
+  currentPhotoDataUrl = null;
+  currentStatus = "in_place";
+  currentHistory = [];
+  el.photoPreviewWrap.innerHTML = '<div class="ph-label">还没有照片</div>';
+  el.fName.value = ""; el.fQty.value = "1"; el.fRoom.value = ""; el.fCategory.value = "";
+  el.fLocationDetail.value = ""; el.fNote.value = "";
+  el.historyField.hidden = true; el.historyList.innerHTML = "";
+  el.deleteItemBtn.hidden = true;
+  updateStatusButtons();
+}
+
+function updateStatusButtons(){
+  document.querySelectorAll(".status-btn").forEach(btn => {
+    btn.classList.toggle("active-" + btn.dataset.status, btn.dataset.status === currentStatus);
+  });
+}
+document.querySelectorAll(".status-btn").forEach(btn => {
+  btn.addEventListener("click", () => { currentStatus = btn.dataset.status; updateStatusButtons(); });
+});
+
+function openAdd(){
+  editingId = null;
+  resetForm();
+  el.sheetTitle.textContent = "记录新物品";
+  openSheet(el.itemSheet);
+}
+
+function openEdit(id){
+  const it = items.find(x => x.id === id);
+  if (!it) return;
+  editingId = id;
+  currentPhotoDataUrl = it.photo || null;
+  currentStatus = it.status || "in_place";
+  currentHistory = it.history || [];
+  el.photoPreviewWrap.innerHTML = it.photo ? `<img src="${it.photo}">` : '<div class="ph-label">还没有照片</div>';
+  el.fName.value = it.name || "";
+  el.fQty.value = it.quantity != null ? it.quantity : 1;
+  el.fRoom.value = it.room || "";
+  el.fCategory.value = it.category || "";
+  el.fLocationDetail.value = it.locationDetail || "";
+  el.fNote.value = it.note || "";
+  updateStatusButtons();
+  if (currentHistory.length){
+    el.historyField.hidden = false;
+    el.historyList.innerHTML = currentHistory.slice().reverse().map(h => `<div>${escapeHtml(h.date)} · ${escapeHtml(h.detail)}</div>`).join("");
+  } else {
+    el.historyField.hidden = true;
+  }
+  el.deleteItemBtn.hidden = false;
+  el.sheetTitle.textContent = "编辑物品";
+  openSheet(el.itemSheet);
+}
+
+function openSheet(sheetEl){
+  el.overlay.classList.add("show");
+  sheetEl.classList.add("show");
+}
+function closeSheets(){
+  el.overlay.classList.remove("show");
+  el.itemSheet.classList.remove("show");
+  el.exportSheet.classList.remove("show");
+}
+el.overlay.addEventListener("click", closeSheets);
+el.closeSheet.addEventListener("click", closeSheets);
+el.addFab.addEventListener("click", openAdd);
+
+/* 压缩图片为缩略图 dataURL */
+function resizeImageFile(file, maxDim){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = () => { img.src = reader.result; };
+    reader.onerror = reject;
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height && width > maxDim){ height = height * maxDim / width; width = maxDim; }
+      else if (height > maxDim){ width = width * maxDim / height; height = maxDim; }
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(width); canvas.height = Math.round(height);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.6));
+    };
+    img.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+el.btnTakePhoto.addEventListener("click", () => {
+  el.photoInputCamera.value = "";
+  el.photoInputCamera.click();
+});
+el.btnPickPhoto.addEventListener("click", () => {
+  el.photoInputLibrary.value = "";
+  el.photoInputLibrary.click();
+});
+
+async function handlePhotoFile(file){
+  if (!file) return;
+  el.photoPreviewWrap.innerHTML = '<div class="ph-label">正在处理照片…</div>';
+  try{
+    const dataUrl = await resizeImageFile(file, 360);
+    currentPhotoDataUrl = dataUrl;
+    el.photoPreviewWrap.innerHTML = `<img src="${dataUrl}">`;
+  }catch(e){
+    console.error("photo process failed", e, file && file.type);
+    el.photoPreviewWrap.innerHTML = '<div class="ph-label">还没有照片</div>';
+    const isHeic = /heic|heif/i.test(file.type || "") || /\.hei[cf]$/i.test(file.name || "");
+    if (isHeic){
+      showToast("这张照片是 HEIC 格式，浏览器无法直接预览。请把 iPhone 相机的格式设置改为「兼容性最佳(JPEG)」后重拍，或从相册选一张普通照片");
+    } else {
+      showToast("图片处理失败，请换一张试试，或检查网络是否正常");
+    }
+  }
+}
+
+el.photoInputCamera.addEventListener("change", () => handlePhotoFile(el.photoInputCamera.files[0]));
+el.photoInputLibrary.addEventListener("change", () => handlePhotoFile(el.photoInputLibrary.files[0]));
+
+/* ---------- save / delete ---------- */
+el.saveItemBtn.addEventListener("click", async () => {
+  const name = el.fName.value.trim();
+  if (!name){ showToast("请填写物品名称"); return; }
+  const room = el.fRoom.value.trim();
+  const category = el.fCategory.value.trim();
+  const locationDetail = el.fLocationDetail.value.trim();
+  const quantity = Number(el.fQty.value) || 0;
+  const note = el.fNote.value.trim();
+
+  if (editingId){
+    const it = items.find(x => x.id === editingId);
+    const history = it.history ? it.history.slice() : [];
+    if (it.status !== currentStatus){
+      const actionLabel = currentStatus === "discarded" ? "标记为已丢弃" : (currentStatus === "moved" ? "标记为已移动" : "标记为在位");
+      history.push({ date: nowStr(), detail: actionLabel + (room && room !== it.room ? "，位置：" + room : "") });
+    } else if (room && room !== it.room){
+      history.push({ date: nowStr(), detail: "位置由「" + (it.room||"未设置") + "」变更为「" + room + "」" });
+    }
+    const updated = Object.assign({}, it, {
+      name, quantity, room, category, locationDetail, note,
+      status: currentStatus, photo: currentPhotoDataUrl, history, updatedAt: Date.now()
+    });
+    await saveItem(updated);
+    showToast("已更新");
+  } else {
+    const newItem = {
+      id: uid(), name, quantity, room, category, locationDetail, note,
+      status: currentStatus, photo: currentPhotoDataUrl,
+      history: [{ date: nowStr(), detail: "创建记录" }],
+      createdAt: Date.now(), updatedAt: Date.now()
+    };
+    await saveItem(newItem);
+    showToast("已保存");
+  }
+  await loadItems();
+  renderAll();
+  closeSheets();
+});
+
+el.deleteItemBtn.addEventListener("click", async () => {
+  if (!editingId) return;
+  if (!confirm("确定删除这条记录吗？此操作无法撤销。")) return;
+  await deleteItemStore(editingId);
+  await loadItems();
+  renderAll();
+  closeSheets();
+  showToast("已删除");
+});
+
+/* ---------- export ---------- */
+el.exportBtn.addEventListener("click", () => {
+  el.exportNote.textContent = "导出后的 Excel 会包含缩略图、名称、数量、房间、类型、具体位置、状态、备注、最近更新时间。";
+  openSheet(el.exportSheet);
+});
+el.closeExportSheet.addEventListener("click", closeSheets);
+
+el.doExportBtn.addEventListener("click", async () => {
+  const scope = el.exportScope.value;
+  const list = scope === "all" ? items : getFiltered();
+  if (list.length === 0){ showToast("没有可导出的记录"); return; }
+
+  el.doExportBtn.disabled = true;
+  el.doExportBtn.textContent = "正在生成…";
+
+  try{
+    if (typeof ExcelJS === "undefined") throw new Error("ExcelJS_NOT_LOADED");
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("家物清单");
+    ws.columns = [
+      { header: "照片", key: "photo", width: 14 },
+      { header: "名称", key: "name", width: 18 },
+      { header: "数量", key: "qty", width: 8 },
+      { header: "房间", key: "room", width: 12 },
+      { header: "类型", key: "category", width: 12 },
+      { header: "具体位置", key: "loc", width: 16 },
+      { header: "状态", key: "status", width: 10 },
+      { header: "备注", key: "note", width: 20 },
+      { header: "最近更新", key: "updated", width: 16 },
+    ];
+    ws.getRow(1).font = { bold: true };
+    ws.getRow(1).height = 20;
+
+    for (let i=0;i<list.length;i++){
+      const it = list[i];
+      const rowIndex = i + 2;
+      ws.getRow(rowIndex).values = {
+        name: it.name || "",
+        qty: it.quantity || 0,
+        room: it.room || "",
+        category: it.category || "",
+        loc: it.locationDetail || "",
+        status: STATUS_LABEL[it.status] || it.status || "",
+        note: it.note || "",
+        updated: it.updatedAt ? new Date(it.updatedAt).toLocaleString() : ""
+      };
+      ws.getRow(rowIndex).height = 60;
+
+      if (it.photo){
+        try{
+          const base64 = it.photo.split(",")[1];
+          const imgId = wb.addImage({ base64, extension: "jpeg" });
+          ws.addImage(imgId, {
+            tl: { col: 0.1, row: rowIndex - 1 + 0.1 },
+            ext: { width: 70, height: 70 }
+          });
+        }catch(imgErr){ console.error("embed image failed", imgErr); }
+      }
+    }
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "家物清单_" + nowStr().replace(/[: ]/g,"-") + ".xlsx";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    showToast("已导出 " + list.length + " 条记录");
+    closeSheets();
+  }catch(err){
+    console.error(err);
+    if (String(err.message).includes("ExcelJS_NOT_LOADED") || /Failed to fetch|NetworkError|Loading/i.test(String(err.message))){
+      showToast("导出组件加载失败，建议把网页下载到本地用浏览器打开后再导出");
+    } else {
+      showToast("导出失败：" + (err.message||err));
+    }
+  }finally{
+    el.doExportBtn.disabled = false;
+    el.doExportBtn.textContent = "生成并下载";
+  }
+});
+
+/* ---------- backup export / import ---------- */
+el.backupBtn.addEventListener("click", async () => {
+  const blob = new Blob([JSON.stringify(items, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "家物清单_备份.json";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+
+el.backupBtn.addEventListener("dblclick", () => el.importFile.click());
+el.importFile.addEventListener("change", async () => {
+  const file = el.importFile.files[0];
+  if (!file) return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    for (const it of data){
+      if (it.id) await saveItem(it);
+    }
+    await loadItems();
+    renderAll();
+    showToast("已导入 " + data.length + " 条记录");
+  }catch(e){
+    showToast("导入失败，请确认文件格式正确");
+  }
+  el.importFile.value = "";
+});
+
+/* ---------- init ---------- */
+(async function init(){
+  await loadItems();
+  renderAll();
+})();
+
+})();
+</script>
+</body>
+</html>
