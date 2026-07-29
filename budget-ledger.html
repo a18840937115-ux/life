@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>理财记账 · 月度预算管理</title>
+<style>
+  :root{
+    --paper:#F3F1EA; --card:#FFFFFF; --ink:#22281F; --ink-soft:#6E7568;
+    --border:#DEDACB; --emerald:#2E6B4F; --emerald-dark:#235A41; --emerald-bg:#E3EFE6;
+    --amber:#B8862C; --amber-bg:#F7EDD8;
+    --danger:#B5473A; --danger-bg:#F6E4E0;
+    --font-display: Georgia,"Iowan Old Style","Times New Roman",serif;
+    --font-body: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);-webkit-tap-highlight-color:transparent;padding-bottom:90px;}
+  .app{max-width:920px;margin:0 auto;padding:22px 16px 40px;}
+
+  header{margin-bottom:16px;}
+  header .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);}
+  header h1{font-family:var(--font-display);font-size:26px;margin:4px 0 4px;}
+  header p{color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin:0;max-width:640px;}
+
+  .month-bar{display:flex;align-items:center;gap:10px;margin:16px 0;flex-wrap:wrap;}
+  .month-bar select{padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card);font-size:14px;font-weight:600;}
+  .month-bar .btn{padding:9px 14px;}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:16px;}
+  .card h2{font-family:var(--font-display);font-size:17px;margin:0 0 12px;font-weight:normal;}
+
+  .overview-total{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;}
+  .ov-chip{flex:1;min-width:130px;background:#FAF9F4;border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
+  .ov-chip .lbl{font-size:11.5px;color:var(--ink-soft);}
+  .ov-chip .val{font-family:var(--font-mono);font-size:20px;font-weight:700;margin-top:2px;}
+  .ov-chip.warn .val{color:var(--danger);}
+
+  .cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+  .cat-card{border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:#FAF9F4;}
+  .cat-card.low{border-color:var(--amber);background:var(--amber-bg);}
+  .cat-card.over{border-color:var(--danger);background:var(--danger-bg);}
+  .cat-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .cat-name{font-weight:700;font-size:14px;}
+  .cat-pct{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft);}
+  .cat-card.low .cat-pct{color:var(--amber);font-weight:700;}
+  .cat-card.over .cat-pct{color:var(--danger);font-weight:700;}
+  .bar-bg{background:#E7E3D6;border-radius:6px;height:7px;overflow:hidden;margin:6px 0;}
+  .bar-fill{background:var(--emerald);height:100%;border-radius:6px;}
+  .cat-card.low .bar-fill{background:var(--amber);}
+  .cat-card.over .bar-fill{background:var(--danger);}
+  .cat-nums{font-size:11.5px;color:var(--ink-soft);display:flex;justify-content:space-between;}
+  .cat-nums b{color:var(--ink);font-family:var(--font-mono);}
+  .warn-tag{font-size:10.5px;background:var(--danger);color:#fff;padding:2px 7px;border-radius:20px;margin-top:6px;display:inline-block;}
+
+  .budget-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .budget-row .bname{flex:1;font-size:13.5px;}
+  .budget-row input{width:110px;padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-family:var(--font-mono);font-size:13px;text-align:right;}
+  .budget-row button{background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:16px;padding:2px 6px;}
+  .budget-summary{
+    display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:10px 12px;
+    border-radius:10px;background:#FAF9F4;border:1px solid var(--border);font-size:13.5px;
+  }
+  .budget-summary.ok{background:var(--emerald-bg);color:var(--emerald-dark);border-color:var(--emerald);}
+  .budget-summary.bad{background:var(--danger-bg);color:var(--danger);border-color:var(--danger);}
+  .add-cat-row{display:flex;gap:8px;margin-top:10px;}
+  .add-cat-row input{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;}
+
+  button{font-family:var(--font-body);cursor:pointer;border:none;border-radius:9px;font-size:13.5px;font-weight:600;padding:9px 14px;min-height:38px;touch-action:manipulation;}
+  .btn-emerald{background:var(--emerald);color:#fff;}
+  .btn-emerald:active{background:var(--emerald-dark);}
+  .btn-emerald:disabled{background:#B9C4B9;cursor:not-allowed;}
+  .btn-ghost{background:#FAF9F4;color:var(--ink);border:1px solid var(--border) !important;}
+
+  .record-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border);font-size:13.5px;cursor:pointer;}
+  .record-row:first-child{border-top:none;}
+  .record-row .r-date{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);width:60px;flex:0 0 auto;}
+  .record-row .r-main{flex:1;min-width:0;}
+  .record-row .r-item{font-weight:600;}
+  .record-row .r-cat{font-size:11.5px;color:var(--ink-soft);}
+  .record-row .r-amt{font-family:var(--font-mono);font-weight:700;flex:0 0 auto;}
+  .record-filter{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+  .record-filter select{padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;background:#FAF9F4;}
+
+  .empty{text-align:center;padding:30px 10px;color:var(--ink-soft);font-size:13.5px;}
+
+  .fab{
+    position:fixed;right:18px;bottom:18px;z-index:20;background:var(--emerald);color:#fff;border:none;border-radius:28px;
+    padding:14px 20px;font-size:14px;font-weight:700;box-shadow:0 6px 18px rgba(46,107,79,0.4);
+    display:flex;align-items:center;gap:8px;cursor:pointer;
+  }
+
+  .overlay{position:fixed;inset:0;background:rgba(30,26,20,0.45);z-index:39;display:none;}
+  .overlay.show{display:block;}
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;top:8%;z-index:40;background:var(--card);
+    border-radius:20px 20px 0 0;display:none;flex-direction:column;max-width:600px;margin:0 auto;
+  }
+  .sheet.show{display:flex;}
+  .sheet-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--border);}
+  .sheet-head h2{font-family:var(--font-display);font-size:18px;margin:0;font-weight:normal;}
+  .sheet-head button{background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;padding:4px 8px;}
+  .sheet-body{flex:1;overflow-y:auto;padding:18px;}
+  .sheet-foot{padding:14px 18px;border-top:1px solid var(--border);display:flex;gap:10px;}
+  .sheet-foot .btn{flex:1;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;font-weight:600;}
+  .field input, .field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:14px;background:#FBFAF7;color:var(--ink);}
+  .row2{display:flex;gap:10px;}
+  .row2 .field{flex:1;}
+
+  .toast{
+    position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:60;max-width:90vw;
+    background:var(--ink);color:#fff;padding:12px 18px;border-radius:14px;font-size:13px;line-height:1.5;
+    display:none;box-shadow:0 6px 18px rgba(0,0,0,0.25);
+  }
+  .toast.show{display:block;}
+  .toast.warn{background:var(--danger);}
+  [hidden]{display:none !important;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="eyebrow">Monthly Budget Ledger</div>
+    <h1>理财记账</h1>
+    <p>先给每个月设置总额度并分配到各个类别，再逐笔记账。随时能看到每个项目本月已花多少、还剩多少，额度快用完会提醒你。</p>
+  </header>
+
+  <div class="month-bar">
+    <select id="monthSelect"></select>
+    <button class="btn btn-ghost" id="setBudgetBtn">设置本月预算</button>
+    <button class="btn btn-ghost" id="exportBtn">导出 Excel</button>
+    <button class="btn btn-ghost" id="backupBtn" title="双击可导入备份">备份数据</button>
+    <input type="file" id="importFile" accept=".json" hidden>
+  </div>
+
+  <div class="card" id="overviewCard">
+    <h2>本月总览</h2>
+    <div class="overview-total" id="overviewTotal"></div>
+    <div class="cat-grid" id="catGrid"></div>
+  </div>
+
+  <div class="card">
+    <h2>消费记录</h2>
+    <div class="record-filter">
+      <select id="recFilterCat"><option value="">全部类别</option></select>
+    </div>
+    <div id="recordsList"></div>
+  </div>
+</div>
+
+<button class="fab" id="addFab">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+  记一笔
+</button>
+
+<div class="overlay" id="overlay"></div>
+
+<div class="sheet" id="recordSheet">
+  <div class="sheet-head"><h2>记一笔消费</h2><button id="closeRecordSheet">×</button></div>
+  <div class="sheet-body">
+    <div class="row2">
+      <div class="field"><label>日期</label><input type="date" id="fDate"></div>
+      <div class="field"><label>金额（元）</label><input type="number" id="fAmount" step="0.01" placeholder="0.00"></div>
+    </div>
+    <div class="field">
+      <label>类型</label>
+      <select id="fCategory"></select>
+    </div>
+    <div class="field"><label>物品 / 说明</label><input type="text" id="fItem" placeholder="例如：超市买菜"></div>
+    <div class="field"><label>备注（可选）</label><input type="text" id="fNote"></div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn-ghost" id="deleteRecordBtn" hidden>删除</button>
+    <button class="btn btn-emerald" id="saveRecordBtn" style="flex:2;">保存</button>
+  </div>
+</div>
+
+<div class="sheet" id="budgetSheet">
+  <div class="sheet-head"><h2 id="budgetSheetTitle">设置本月预算</h2><button id="closeBudgetSheet">×</button></div>
+  <div class="sheet-body">
+    <div class="field">
+      <label>本月总额度（元）</label>
+      <input type="number" id="fTotalBudget" step="0.01" placeholder="0.00">
+    </div>
+    <div id="categoryBudgetRows"></div>
+    <div class="add-cat-row">
+      <input type="text" id="newCatName" placeholder="添加新类别，例如：宠物">
+      <button class="btn btn-ghost" id="addCatBtn">添加</button>
+    </div>
+    <div class="budget-summary" id="budgetSummary"></div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn-emerald" id="saveBudgetBtn" style="flex:1;">保存本月预算</button>
+  </div>
+</div>
+
+<div class="sheet" id="exportSheet" style="top:auto;height:auto;">
+  <div class="sheet-head"><h2>导出 Excel</h2><button id="closeExportSheet">×</button></div>
+  <div class="sheet-body">
+    <div class="field">
+      <label>导出方式</label>
+      <select id="exportMode">
+        <option value="month">按月导出</option>
+        <option value="category">按项目导出</option>
+      </select>
+    </div>
+    <div class="field" id="exportMonthField">
+      <label>选择月份</label>
+      <select id="exportMonthSelect"></select>
+    </div>
+    <div class="field" id="exportCatField" hidden>
+      <label>选择类别</label>
+      <select id="exportCatSelect"></select>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn-emerald" id="doExportBtn" style="flex:1;">生成并下载</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+const memoryStore = {};
+const hasRealStorage = () => typeof window.storage !== "undefined" && window.storage !== null;
+const hasIdb = () => typeof indexedDB !== "undefined";
+let idbPromise = null;
+function openIdb(){
+  if (!idbPromise){
+    idbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open("budget_ledger_db", 1);
+      req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv"); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return idbPromise;
+}
+function idbGet(key){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readonly"); const r=tx.objectStore("kv").get(key); r.onsuccess=()=>res(r.result!=null?r.result:null); r.onerror=()=>rej(r.error); })); }
+function idbSet(key,value){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").put(value,key); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); })); }
+function idbDelete(key){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").delete(key); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); })); }
+function idbListKeys(prefix){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readonly"); const r=tx.objectStore("kv").getAllKeys(); r.onsuccess=()=>res((r.result||[]).map(String).filter(k=>k.startsWith(prefix))); r.onerror=()=>rej(r.error); })); }
+
+async function storeGet(key){
+  if (hasRealStorage()){ try{ const r = await window.storage.get(key, false); return r ? r.value : null; }catch(e){ return null; } }
+  if (hasIdb()){ try{ return await idbGet(key); }catch(e){ console.error(e); } }
+  return Object.prototype.hasOwnProperty.call(memoryStore,key) ? memoryStore[key] : null;
+}
+async function storeSet(key, value){
+  if (hasRealStorage()){ try{ await window.storage.set(key, value, false); return true; }catch(e){ return false; } }
+  if (hasIdb()){ try{ await idbSet(key, value); return true; }catch(e){ console.error(e); } }
+  memoryStore[key] = value; return true;
+}
+async function storeDelete(key){
+  if (hasRealStorage()){ try{ await window.storage.delete(key, false); return true; }catch(e){ return false; } }
+  if (hasIdb()){ try{ await idbDelete(key); return true; }catch(e){ console.error(e); } }
+  delete memoryStore[key]; return true;
+}
+async function storeList(prefix){
+  if (hasRealStorage()){ try{ const r = await window.storage.list(prefix, false); return r ? r.keys : []; }catch(e){ return []; } }
+  if (hasIdb()){ try{ return await idbListKeys(prefix); }catch(e){ console.error(e); } }
+  return Object.keys(memoryStore).filter(k => k.startsWith(prefix));
+}
+
+function uid(){ return "e_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8); }
+function escapeHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function fmt(n){ return (Math.round((Number(n)||0)*100)/100).toLocaleString("zh-CN",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function monthOf(dateStr){ return (dateStr||"").slice(0,7); }
+function monthLabel(m){ const parts=m.split("-"); return parts[0]+"年"+Number(parts[1])+"月"; }
+
+const DEFAULT_CATEGORIES = ["餐饮","交通","购物","居住","娱乐","医疗","教育","通讯","人情往来","其他"];
+
+let categories = [];
+let expenses = [];
+let budgets = {};
+let currentMonth = todayStr().slice(0,7);
+let editingExpenseId = null;
+
+const el = {};
+["monthSelect","setBudgetBtn","exportBtn","backupBtn","importFile",
+ "overviewTotal","catGrid","recFilterCat","recordsList","addFab","overlay",
+ "recordSheet","closeRecordSheet","fDate","fAmount","fCategory","fItem","fNote","deleteRecordBtn","saveRecordBtn",
+ "budgetSheet","budgetSheetTitle","closeBudgetSheet","fTotalBudget","categoryBudgetRows","newCatName","addCatBtn","budgetSummary","saveBudgetBtn",
+ "exportSheet","closeExportSheet","exportMode","exportMonthField","exportMonthSelect","exportCatField","exportCatSelect","doExportBtn",
+ "toast"
+].forEach(id => el[id] = document.getElementById(id));
+
+function showToast(msg, warn){
+  el.toast.textContent = msg;
+  el.toast.className = "toast show" + (warn ? " warn" : "");
+  setTimeout(() => el.toast.classList.remove("show"), warn ? 4000 : 2200);
+}
+
+async function loadAll(){
+  const catRaw = await storeGet("categories");
+  categories = catRaw ? JSON.parse(catRaw) : DEFAULT_CATEGORIES.slice();
+
+  const expKeys = await storeList("expense_");
+  expenses = [];
+  for (const k of expKeys){ const raw = await storeGet(k); if (raw){ try{ expenses.push(JSON.parse(raw)); }catch(e){} } }
+  expenses.sort((a,b) => (b.date||"").localeCompare(a.date||"") || (b.createdAt||0)-(a.createdAt||0));
+
+  const budgetKeys = await storeList("budget_");
+  budgets = {};
+  for (const k of budgetKeys){ const raw = await storeGet(k); if (raw){ try{ const b = JSON.parse(raw); budgets[b.month] = b; }catch(e){} } }
+}
+async function saveCategories(){ await storeSet("categories", JSON.stringify(categories)); }
+async function saveExpense(e){ await storeSet("expense_" + e.id, JSON.stringify(e)); }
+async function deleteExpenseStore(id){ await storeDelete("expense_" + id); }
+async function saveBudget(b){ await storeSet("budget_" + b.month, JSON.stringify(b)); }
+
+function getMonthsWithData(){
+  const set = new Set([currentMonth]);
+  expenses.forEach(e => set.add(monthOf(e.date)));
+  Object.keys(budgets).forEach(m => set.add(m));
+  return Array.from(set).sort().reverse();
+}
+
+function spentByCategory(month){
+  const map = {};
+  expenses.filter(e => monthOf(e.date) === month).forEach(e => {
+    map[e.category] = (map[e.category]||0) + (Number(e.amount)||0);
+  });
+  return map;
+}
+
+function populateMonthSelect(){
+  const months = getMonthsWithData();
+  el.monthSelect.innerHTML = months.map(m => `<option value="${m}">${monthLabel(m)}</option>`).join("");
+  if (!months.includes(currentMonth)){
+    el.monthSelect.insertAdjacentHTML("afterbegin", `<option value="${currentMonth}">${monthLabel(currentMonth)}</option>`);
+  }
+  el.monthSelect.value = currentMonth;
+}
+el.monthSelect.addEventListener("change", () => { currentMonth = el.monthSelect.value; renderOverview(); renderRecords(); });
+
+function populateCategorySelects(){
+  const opts = categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  el.fCategory.innerHTML = opts;
+  el.recFilterCat.innerHTML = '<option value="">全部类别</option>' + opts;
+  el.exportCatSelect.innerHTML = opts;
+}
+
+function renderOverview(){
+  const budget = budgets[currentMonth];
+  const spentMap = spentByCategory(currentMonth);
+  const totalSpent = Object.values(spentMap).reduce((s,v)=>s+v,0);
+  const totalBudget = budget ? budget.totalBudget : 0;
+  const totalRemain = totalBudget - totalSpent;
+
+  el.overviewTotal.innerHTML = `
+    <div class="ov-chip"><div class="lbl">本月总额度</div><div class="val">¥${fmt(totalBudget)}</div></div>
+    <div class="ov-chip"><div class="lbl">截止今日已花费</div><div class="val">¥${fmt(totalSpent)}</div></div>
+    <div class="ov-chip ${totalRemain<0?'warn':''}"><div class="lbl">本月剩余</div><div class="val">¥${fmt(totalRemain)}</div></div>
+  `;
+
+  if (!budget){
+    el.catGrid.innerHTML = `<div class="empty">还没有设置 ${monthLabel(currentMonth)} 的预算，点上面"设置本月预算"开始。</div>`;
+    return;
+  }
+
+  const cats = Object.keys(budget.categoryBudgets).filter(c => budget.categoryBudgets[c] > 0 || spentMap[c] > 0);
+  if (cats.length === 0){
+    el.catGrid.innerHTML = `<div class="empty">这个月还没有给任何类别分配额度。</div>`;
+    return;
+  }
+
+  el.catGrid.innerHTML = cats.map(cat => {
+    const catBudget = budget.categoryBudgets[cat] || 0;
+    const spent = spentMap[cat] || 0;
+    const remain = catBudget - spent;
+    const pct = catBudget > 0 ? (remain / catBudget) * 100 : (spent > 0 ? -100 : 100);
+    const usedPct = catBudget > 0 ? Math.min(100, (spent/catBudget)*100) : (spent>0?100:0);
+    let cls = "";
+    if (remain < 0) cls = "over"; else if (catBudget > 0 && pct <= 10) cls = "low";
+    return `
+      <div class="cat-card ${cls}">
+        <div class="cat-top"><span class="cat-name">${escapeHtml(cat)}</span><span class="cat-pct">${catBudget>0?Math.round(pct)+'%':''}</span></div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${usedPct}%"></div></div>
+        <div class="cat-nums"><span>额度 <b>¥${fmt(catBudget)}</b></span><span>已花 <b>¥${fmt(spent)}</b></span></div>
+        <div class="cat-nums"><span>剩余</span><span><b>¥${fmt(remain)}</b></span></div>
+        ${cls==="over" ? '<span class="warn-tag">已超支</span>' : (cls==="low" ? '<span class="warn-tag">⚠️ 额度将尽</span>' : '')}
+      </div>
+    `;
+  }).join("");
+}
+
+function renderRecords(){
+  const filterCat = el.recFilterCat.value;
+  const list = expenses.filter(e => monthOf(e.date) === currentMonth && (!filterCat || e.category === filterCat));
+  if (list.length === 0){
+    el.recordsList.innerHTML = `<div class="empty">这个月还没有记录，点右下角"记一笔"开始。</div>`;
+    return;
+  }
+  el.recordsList.innerHTML = list.map(e => `
+    <div class="record-row" data-id="${e.id}">
+      <div class="r-date">${(e.date||"").slice(5)}</div>
+      <div class="r-main">
+        <div class="r-item">${escapeHtml(e.item||"（未填写）")}</div>
+        <div class="r-cat">${escapeHtml(e.category)}${e.note?(" · "+escapeHtml(e.note)):""}</div>
+      </div>
+      <div class="r-amt">¥${fmt(e.amount)}</div>
+    </div>
+  `).join("");
+  el.recordsList.querySelectorAll(".record-row").forEach(row => {
+    row.addEventListener("click", () => openEditRecord(row.dataset.id));
+  });
+}
+el.recFilterCat.addEventListener("change", renderRecords);
+
+function renderAll(){
+  populateMonthSelect();
+  populateCategorySelects();
+  renderOverview();
+  renderRecords();
+}
+
+function openSheet(s){ el.overlay.classList.add("show"); s.classList.add("show"); }
+function closeSheets(){ el.overlay.classList.remove("show"); [el.recordSheet, el.budgetSheet, el.exportSheet].forEach(s=>s.classList.remove("show")); }
+el.overlay.addEventListener("click", closeSheets);
+
+el.addFab.addEventListener("click", () => {
+  editingExpenseId = null;
+  el.fDate.value = todayStr();
+  el.fAmount.value = "";
+  el.fCategory.value = categories[0] || "";
+  el.fItem.value = "";
+  el.fNote.value = "";
+  el.deleteRecordBtn.hidden = true;
+  openSheet(el.recordSheet);
+});
+el.closeRecordSheet.addEventListener("click", closeSheets);
+
+function openEditRecord(id){
+  const e = expenses.find(x => x.id === id);
+  if (!e) return;
+  editingExpenseId = id;
+  el.fDate.value = e.date;
+  el.fAmount.value = e.amount;
+  el.fCategory.value = e.category;
+  el.fItem.value = e.item || "";
+  el.fNote.value = e.note || "";
+  el.deleteRecordBtn.hidden = false;
+  openSheet(el.recordSheet);
+}
+
+el.saveRecordBtn.addEventListener("click", async () => {
+  const date = el.fDate.value || todayStr();
+  const amount = Number(el.fAmount.value);
+  const category = el.fCategory.value;
+  const item = el.fItem.value.trim();
+  const note = el.fNote.value.trim();
+  if (!amount || amount <= 0){ showToast("请输入有效的金额"); return; }
+  if (!category){ showToast("请选择类别"); return; }
+
+  const record = {
+    id: editingExpenseId || uid(),
+    date, amount, category, item, note,
+    createdAt: editingExpenseId ? (expenses.find(x=>x.id===editingExpenseId)||{}).createdAt || Date.now() : Date.now()
+  };
+  await saveExpense(record);
+  await loadAll();
+
+  const m = monthOf(date);
+  currentMonth = m;
+  renderAll();
+  closeSheets();
+  showToast("已保存");
+  checkLowBudgetWarning(m, category);
+});
+
+el.deleteRecordBtn.addEventListener("click", async () => {
+  if (!editingExpenseId) return;
+  if (!confirm("确定删除这条消费记录吗？")) return;
+  await deleteExpenseStore(editingExpenseId);
+  await loadAll();
+  renderAll();
+  closeSheets();
+  showToast("已删除");
+});
+
+function checkLowBudgetWarning(month, category){
+  const budget = budgets[month];
+  if (!budget) return;
+  const catBudget = budget.categoryBudgets[category];
+  if (!catBudget || catBudget <= 0) return;
+  const spent = spentByCategory(month)[category] || 0;
+  const remain = catBudget - spent;
+  const pct = (remain / catBudget) * 100;
+  if (remain < 0){
+    showToast("⚠️「" + category + "」本月已超支 ¥" + fmt(-remain) + "，注意消费！", true);
+  } else if (pct <= 10){
+    showToast("⚠️「" + category + "」本月额度只剩 " + Math.max(0,Math.round(pct)) + "%（¥" + fmt(remain) + "），注意消费！", true);
+  }
+}
+
+el.setBudgetBtn.addEventListener("click", () => {
+  el.budgetSheetTitle.textContent = "设置 " + monthLabel(currentMonth) + " 预算";
+  const existing = budgets[currentMonth];
+  el.fTotalBudget.value = existing ? existing.totalBudget : "";
+  renderCategoryBudgetRows(existing ? existing.categoryBudgets : {});
+  openSheet(el.budgetSheet);
+});
+el.closeBudgetSheet.addEventListener("click", closeSheets);
+
+function renderCategoryBudgetRows(catBudgets){
+  el.categoryBudgetRows.innerHTML = categories.map(cat => `
+    <div class="budget-row" data-cat="${escapeHtml(cat)}">
+      <span class="bname">${escapeHtml(cat)}</span>
+      <input type="number" step="0.01" class="cat-budget-input" value="${catBudgets[cat] != null ? catBudgets[cat] : ''}" placeholder="0.00">
+      <button type="button" class="remove-cat" title="删除类别">×</button>
+    </div>
+  `).join("");
+  el.categoryBudgetRows.querySelectorAll(".cat-budget-input").forEach(inp => inp.addEventListener("input", updateBudgetSummary));
+  el.categoryBudgetRows.querySelectorAll(".remove-cat").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const row = btn.closest(".budget-row");
+      const cat = row.dataset.cat;
+      if (!confirm("删除类别「" + cat + "」？（已产生的消费记录不会被删除）")) return;
+      categories = categories.filter(c => c !== cat);
+      await saveCategories();
+      renderCategoryBudgetRows(collectCategoryBudgets());
+      updateBudgetSummary();
+    });
+  });
+  updateBudgetSummary();
+}
+
+function collectCategoryBudgets(){
+  const out = {};
+  el.categoryBudgetRows.querySelectorAll(".budget-row").forEach(row => {
+    const cat = row.dataset.cat;
+    const val = Number(row.querySelector(".cat-budget-input").value) || 0;
+    out[cat] = val;
+  });
+  return out;
+}
+
+function updateBudgetSummary(){
+  const total = Number(el.fTotalBudget.value) || 0;
+  const catBudgets = collectCategoryBudgets();
+  const sum = Object.values(catBudgets).reduce((s,v)=>s+v,0);
+  const diff = Math.round((total - sum)*100)/100;
+  if (Math.abs(diff) < 0.005){
+    el.budgetSummary.className = "budget-summary ok";
+    el.budgetSummary.textContent = "✓ 已分配 ¥" + fmt(sum) + "，正好等于总额度";
+    el.saveBudgetBtn.disabled = false;
+  } else if (diff > 0){
+    el.budgetSummary.className = "budget-summary bad";
+    el.budgetSummary.textContent = "还差 ¥" + fmt(diff) + " 没有分配（已分配 ¥" + fmt(sum) + " / 总额度 ¥" + fmt(total) + "）";
+    el.saveBudgetBtn.disabled = true;
+  } else {
+    el.budgetSummary.className = "budget-summary bad";
+    el.budgetSummary.textContent = "已超出分配 ¥" + fmt(-diff) + "（已分配 ¥" + fmt(sum) + " / 总额度 ¥" + fmt(total) + "），请调整";
+    el.saveBudgetBtn.disabled = true;
+  }
+  return { total, sum, diff, catBudgets };
+}
+el.fTotalBudget.addEventListener("input", updateBudgetSummary);
+
+el.addCatBtn.addEventListener("click", async () => {
+  const name = el.newCatName.value.trim();
+  if (!name) return;
+  if (categories.includes(name)){ showToast("这个类别已经存在"); return; }
+  categories.push(name);
+  await saveCategories();
+  el.newCatName.value = "";
+  const cur = collectCategoryBudgets();
+  renderCategoryBudgetRows(cur);
+});
+
+el.saveBudgetBtn.addEventListener("click", async () => {
+  const { total, catBudgets, diff } = updateBudgetSummary();
+  if (Math.abs(diff) >= 0.005){ showToast("各类别额度加和必须正好等于总额度才能保存"); return; }
+  const budget = { month: currentMonth, totalBudget: total, categoryBudgets: catBudgets };
+  await saveBudget(budget);
+  await loadAll();
+  populateCategorySelects();
+  renderOverview();
+  closeSheets();
+  showToast("预算已保存");
+});
+
+el.exportBtn.addEventListener("click", () => {
+  const months = getMonthsWithData();
+  el.exportMonthSelect.innerHTML = months.map(m => `<option value="${m}">${monthLabel(m)}</option>`).join("");
+  el.exportMonthSelect.value = currentMonth;
+  el.exportCatSelect.innerHTML = categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  openSheet(el.exportSheet);
+});
+el.closeExportSheet.addEventListener("click", closeSheets);
+el.exportMode.addEventListener("change", () => {
+  const isMonth = el.exportMode.value === "month";
+  el.exportMonthField.hidden = !isMonth;
+  el.exportCatField.hidden = isMonth;
+});
+
+el.doExportBtn.addEventListener("click", () => {
+  try{
+    if (typeof XLSX === "undefined") throw new Error("XLSX_NOT_LOADED");
+    if (el.exportMode.value === "month"){
+      exportByMonth(el.exportMonthSelect.value);
+    } else {
+      exportByCategory(el.exportCatSelect.value);
+    }
+    closeSheets();
+  }catch(err){
+    console.error(err);
+    if (/XLSX_NOT_LOADED|Failed to fetch|NetworkError/i.test(String(err.message))){
+      showToast("导出组件加载失败，建议把网页下载到本地用浏览器打开后再导出");
+    } else {
+      showToast("导出失败：" + (err.message||err));
+    }
+  }
+});
+
+function exportByMonth(month){
+  const budget = budgets[month] || { totalBudget:0, categoryBudgets:{} };
+  const spentMap = spentByCategory(month);
+  const cats = Array.from(new Set([...Object.keys(budget.categoryBudgets), ...Object.keys(spentMap)]));
+
+  const summaryRows = cats.map(c => {
+    const b = budget.categoryBudgets[c] || 0;
+    const s = spentMap[c] || 0;
+    return { "类别": c, "额度": b, "已花费": s, "剩余": b - s, "使用占比": b>0 ? Math.round((s/b)*100)+"%" : "" };
+  });
+  const totalSpentAll = Object.values(spentMap).reduce((s,v)=>s+v,0);
+  summaryRows.push({ "类别":"合计", "额度": budget.totalBudget, "已花费": totalSpentAll, "剩余": budget.totalBudget - totalSpentAll, "使用占比":"" });
+
+  const detailRows = expenses.filter(e => monthOf(e.date) === month)
+    .sort((a,b)=> (a.date||"").localeCompare(b.date||""))
+    .map(e => ({ "日期": e.date, "类别": e.category, "物品/说明": e.item||"", "金额": e.amount, "备注": e.note||"" }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "预算总览");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows.length?detailRows:[{"提示":"这个月还没有消费记录"}]), "消费明细");
+  XLSX.writeFile(wb, monthLabel(month) + "_理财记账.xlsx");
+  showToast("已导出");
+}
+
+function exportByCategory(category){
+  const detailRows = expenses.filter(e => e.category === category)
+    .sort((a,b)=> (a.date||"").localeCompare(b.date||""))
+    .map(e => ({ "日期": e.date, "月份": monthOf(e.date), "物品/说明": e.item||"", "金额": e.amount, "备注": e.note||"" }));
+
+  const monthlySummary = Object.keys(budgets).sort().map(m => {
+    const b = budgets[m].categoryBudgets[category];
+    if (b == null) return null;
+    const spent = spentByCategory(m)[category] || 0;
+    return { "月份": m, "额度": b, "已花费": spent, "剩余": b - spent, "使用占比": b>0?Math.round((spent/b)*100)+"%":"" };
+  }).filter(Boolean);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(monthlySummary.length?monthlySummary:[{"提示":"还没有这个类别的月度预算数据"}]), "每月额度概览");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows.length?detailRows:[{"提示":"还没有这个类别的消费记录"}]), "全部消费记录");
+  XLSX.writeFile(wb, category + "_理财记账.xlsx");
+  showToast("已导出");
+}
+
+el.backupBtn.addEventListener("click", () => {
+  const data = { categories, expenses, budgets: Object.values(budgets) };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "理财记账_备份.json";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+el.backupBtn.addEventListener("dblclick", () => el.importFile.click());
+el.importFile.addEventListener("change", async () => {
+  const file = el.importFile.files[0];
+  if (!file) return;
+  try{
+    const data = JSON.parse(await file.text());
+    if (data.categories){ categories = data.categories; await saveCategories(); }
+    for (const e of (data.expenses||[])) if (e.id) await saveExpense(e);
+    for (const b of (data.budgets||[])) if (b.month) await saveBudget(b);
+    await loadAll();
+    renderAll();
+    showToast("已导入备份");
+  }catch(e){
+    showToast("导入失败，请确认文件格式正确");
+  }
+  el.importFile.value = "";
+});
+
+(async function init(){
+  await loadAll();
+  renderAll();
+})();
+
+})();
+</script>
+</body>
+</html>

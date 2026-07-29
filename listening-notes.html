@@ -51,13 +51,17 @@
   }
   .card h2{font-family:var(--font-display);font-size:16px;margin:0 0 12px;font-weight:600;}
   label{display:block;font-size:13px;color:var(--ink-soft);margin-bottom:6px;}
-  input[type=password], input[type=text]{
+  input[type=password], input[type=text], textarea{
     width:100%;
     padding:10px 12px;
     border:1px solid var(--border);
     border-radius:8px;
     font-size:15px;
     background:#FAFBF8;
+    color:var(--ink);
+    font-family:var(--font-body);
+  }
+  textarea{resize:vertical;line-height:1.5;}
     color:var(--ink);
   }
   input[type=password]:focus, input[type=text]:focus{outline:2px solid var(--teal);outline-offset:1px;}
@@ -228,6 +232,10 @@
       <label class="file-drop" id="fileDrop" for="audioFile">点击选择音频文件</label>
       <input type="file" id="audioFile" accept="audio/*,video/mp4">
     </div>
+    <div class="row">
+      <label>参考字幕 / 原文（可选，粘贴进来可以对照识别是否准确）</label>
+      <textarea id="referenceText" rows="4" placeholder="如果你手头有这段音频对应的原文或字幕，粘贴在这里，识别完成后可以随时打开对照查看"></textarea>
+    </div>
     <button class="btn-primary" id="transcribeBtn" disabled>开始识别（免费，无需登录）</button>
     <div class="status" id="status"></div>
     <div class="hint">流程：语音识别模型在你手机/电脑本地运行，听写英文原文并切句 → 免费翻译接口生成中文对照。点任意单词可查英文释义，可一键收进生词本。首次使用需要下载一次识别模型（约 40-75MB），之后会被浏览器缓存，不用重复下载。</div>
@@ -241,6 +249,8 @@
 </div>
 
 <button class="vocab-fab" id="vocabToggle">生词本 <span id="vocabCount">0</span></button>
+<button class="vocab-fab" id="historyToggle" style="right:auto;left:16px;">历史记录</button>
+<button class="vocab-fab" id="refToggle" style="right:auto;left:16px;bottom:76px;" hidden>参考字幕对照</button>
 
 <div id="vocabOverlay" class="overlay-bg" hidden></div>
 <aside id="vocabPanel" class="vocab-panel" hidden>
@@ -254,6 +264,24 @@
   </div>
 </aside>
 
+<div id="historyOverlay" class="overlay-bg" hidden></div>
+<aside id="historyPanel" class="vocab-panel" hidden>
+  <div class="vocab-header">
+    <span>历史记录</span>
+    <button id="historyClose" aria-label="关闭">×</button>
+  </div>
+  <div class="vocab-list" id="historyList"></div>
+</aside>
+
+<div id="refOverlay" class="overlay-bg" hidden></div>
+<aside id="refPanel" class="vocab-panel" hidden>
+  <div class="vocab-header">
+    <span>参考字幕对照</span>
+    <button id="refClose" aria-label="关闭">×</button>
+  </div>
+  <div class="vocab-list" id="refContent" style="white-space:pre-line;font-size:14px;line-height:1.7;"></div>
+</aside>
+
 <div id="sheetOverlay" class="sheet-bg" hidden></div>
 <div id="wordSheet" class="word-sheet" hidden></div>
 
@@ -261,9 +289,29 @@
 (function(){
   "use strict";
 
-  /* ---------- storage wrapper (falls back to memory if window.storage isn't available, e.g. opened as a plain local file) ---------- */
+  /* ---------- storage wrapper ----------
+     优先用 window.storage（Claude 网页里打开时可用）；
+     否则用浏览器自带的 IndexedDB 做真正的本地持久化（下载到本地用浏览器打开时用这个）
+  ---------- */
   const memoryStore = {};
   const hasRealStorage = () => typeof window.storage !== "undefined" && window.storage !== null;
+  const hasIdb = () => typeof indexedDB !== "undefined";
+  let idbPromise = null;
+  function openIdb(){
+    if(!idbPromise){
+      idbPromise = new Promise((resolve, reject) => {
+        const req = indexedDB.open("listening_notes_db", 1);
+        req.onupgradeneeded = () => { const db = req.result; if(!db.objectStoreNames.contains("kv")) db.createObjectStore("kv"); };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+    return idbPromise;
+  }
+  function idbGet(key){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readonly"); const r=tx.objectStore("kv").get(key); r.onsuccess=()=>res(r.result!=null?r.result:null); r.onerror=()=>rej(r.error); })); }
+  function idbSet(key,value){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").put(value,key); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); })); }
+  function idbDelete(key){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").delete(key); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); })); }
+  function idbListKeys(prefix){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readonly"); const r=tx.objectStore("kv").getAllKeys(); r.onsuccess=()=>res((r.result||[]).map(String).filter(k=>k.startsWith(prefix))); r.onerror=()=>rej(r.error); })); }
 
   async function storeGet(key){
     if(hasRealStorage()){
@@ -272,18 +320,21 @@
         return r ? r.value : null;
       }catch(e){ return null; }
     }
+    if(hasIdb()){ try{ return await idbGet(key); }catch(e){ console.error(e); } }
     return Object.prototype.hasOwnProperty.call(memoryStore,key) ? memoryStore[key] : null;
   }
   async function storeSet(key,value){
     if(hasRealStorage()){
       try{ await window.storage.set(key, value, false); return true; }catch(e){ return false; }
     }
+    if(hasIdb()){ try{ await idbSet(key,value); return true; }catch(e){ console.error(e); } }
     memoryStore[key] = value; return true;
   }
   async function storeDelete(key){
     if(hasRealStorage()){
       try{ await window.storage.delete(key, false); return true; }catch(e){ return false; }
     }
+    if(hasIdb()){ try{ await idbDelete(key); return true; }catch(e){ console.error(e); } }
     delete memoryStore[key]; return true;
   }
   async function storeList(prefix){
@@ -293,6 +344,7 @@
         return r ? r.keys : [];
       }catch(e){ return []; }
     }
+    if(hasIdb()){ try{ return await idbListKeys(prefix); }catch(e){ console.error(e); } }
     return Object.keys(memoryStore).filter(k => k.startsWith(prefix));
   }
 
@@ -313,6 +365,7 @@
   const el = {
     fileDrop: document.getElementById("fileDrop"),
     audioFile: document.getElementById("audioFile"),
+    referenceText: document.getElementById("referenceText"),
     transcribeBtn: document.getElementById("transcribeBtn"),
     status: document.getElementById("status"),
     playerBar: document.getElementById("playerBar"),
@@ -327,13 +380,26 @@
     exportVocab: document.getElementById("exportVocab"),
     sheetOverlay: document.getElementById("sheetOverlay"),
     wordSheet: document.getElementById("wordSheet"),
+    historyToggle: document.getElementById("historyToggle"),
+    historyOverlay: document.getElementById("historyOverlay"),
+    historyPanel: document.getElementById("historyPanel"),
+    historyClose: document.getElementById("historyClose"),
+    historyList: document.getElementById("historyList"),
+    refToggle: document.getElementById("refToggle"),
+    refOverlay: document.getElementById("refOverlay"),
+    refPanel: document.getElementById("refPanel"),
+    refClose: document.getElementById("refClose"),
+    refContent: document.getElementById("refContent"),
   };
 
   let selectedFile = null;
+  let currentReferenceText = "";
+  let currentHistoryId = null;
 
   /* ---------- init: restore vocab ---------- */
   (async function init(){
     await refreshVocabBadgeAndSet();
+    await renderHistoryList();
   })();
 
   el.audioFile.addEventListener("change", () => {
@@ -386,19 +452,45 @@
     const url = URL.createObjectURL(file);
     setStatus("正在识别语音内容…（音频越长耗时越久，手机上会更慢，请勿关闭页面）");
     const output = await transcriber(url, {
-      return_timestamps: true,
+      return_timestamps: "word",
       chunk_length_s: 30,
       stride_length_s: 5
     });
-    const chunks = output.chunks || [{ timestamp: [0, null], text: output.text }];
-    return chunks
-      .map(c => ({
-        start: c.timestamp[0] || 0,
-        end: (c.timestamp[1] == null) ? (c.timestamp[0] || 0) + 4 : c.timestamp[1],
-        text: (c.text || "").trim(),
-        zh: ""
-      }))
-      .filter(s => s.text.length > 0);
+
+    const words = (output.chunks || []).filter(c => c.text && c.text.trim().length > 0);
+    if(words.length === 0){
+      const fallback = (output.text || "").trim();
+      return fallback ? [{ start:0, end:0, text: fallback, zh:"" }] : [];
+    }
+
+    // 按标点把词级时间戳重新组成句子，比模型自带的粗粒度分段更准确
+    const sentences = [];
+    let cur = [];
+    for(const w of words){
+      cur.push(w);
+      const t = w.text.trim();
+      const looksLikeSentenceEnd = /[.!?][")'\]]?$/.test(t);
+      if(looksLikeSentenceEnd && cur.length >= 3){
+        sentences.push(cur);
+        cur = [];
+      }
+    }
+    if(cur.length){
+      if(sentences.length > 0 && cur.length < 3){
+        sentences[sentences.length-1] = sentences[sentences.length-1].concat(cur);
+      }else{
+        sentences.push(cur);
+      }
+    }
+
+    return sentences.map(ws => {
+      const text = ws.map(w => w.text).join("").replace(/\s+/g," ").trim();
+      const first = ws[0], last = ws[ws.length-1];
+      const start = (first.timestamp && first.timestamp[0]) || 0;
+      let end = last.timestamp && last.timestamp[1];
+      if(end == null) end = (last.timestamp && last.timestamp[0]) != null ? last.timestamp[0] + 1 : start + 4;
+      return { start, end, text, zh: "" };
+    }).filter(s => s.text.length > 0);
   }
 
   /* ---------- free translation (unofficial public endpoint, no key) ---------- */
@@ -486,6 +578,7 @@
   el.transcribeBtn.addEventListener("click", async () => {
     if(!selectedFile) return;
     el.transcribeBtn.disabled = true;
+    currentReferenceText = el.referenceText.value.trim();
     setStatus("正在准备语音识别模型（第一次使用需要下载，请保持网络连接）…");
     try{
       const segments = await transcribeAudio(selectedFile);
@@ -505,6 +598,20 @@
       state.segments = segments;
       renderTranscript();
       setStatus("完成！点击句首圆形按钮播放原句，点击任意单词查看英文释义。", "ok");
+
+      currentHistoryId = "h_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8);
+      await storeSet("history_" + currentHistoryId, JSON.stringify({
+        id: currentHistoryId,
+        fileName: selectedFile.name,
+        segments: state.segments,
+        referenceText: currentReferenceText,
+        createdAt: Date.now()
+      }));
+      await renderHistoryList();
+      if(currentReferenceText){
+        el.refToggle.hidden = false;
+        el.refContent.textContent = currentReferenceText;
+      }
     }catch(err){
       console.error(err);
       let msg = err.message || String(err);
@@ -516,6 +623,70 @@
       el.transcribeBtn.disabled = false;
     }
   });
+
+  /* ---------- history panel ---------- */
+  async function renderHistoryList(){
+    const keys = await storeList("history_");
+    const items = [];
+    for(const k of keys){
+      const raw = await storeGet(k);
+      if(raw){ try{ items.push(JSON.parse(raw)); }catch(e){} }
+    }
+    items.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+    if(items.length === 0){
+      el.historyList.innerHTML = '<div class="empty">还没有历史记录。识别完成一段音频后会自动保存在这里，下次可以直接点开，不用重新识别。</div>';
+      return;
+    }
+    el.historyList.innerHTML = items.map(it => {
+      const d = new Date(it.createdAt);
+      const dateStr = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+      return `
+        <div class="vocab-item">
+          <div class="vw">${escapeHtml(it.fileName||"未命名音频")}</div>
+          <div class="vdef">${(it.segments||[]).length} 句 · ${dateStr}${it.referenceText ? " · 含参考字幕" : ""}</div>
+          <div class="vactions">
+            <button class="btn-ghost btn-small" data-load="${it.id}">打开</button>
+            <button class="btn-ghost btn-small" data-delhist="${it.id}">删除</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+    el.historyList.querySelectorAll("[data-load]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const raw = await storeGet("history_" + btn.dataset.load);
+        if(!raw) return;
+        const it = JSON.parse(raw);
+        state.segments = it.segments || [];
+        currentReferenceText = it.referenceText || "";
+        currentHistoryId = it.id;
+        el.referenceText.value = currentReferenceText;
+        renderTranscript();
+        el.playerBar.hidden = true;
+        el.refToggle.hidden = !currentReferenceText;
+        if(currentReferenceText) el.refContent.textContent = currentReferenceText;
+        setStatus("已从历史记录打开「" + (it.fileName||"") + "」（此时没有对应的音频文件，播放功能不可用，仅可查看文字与查词）。", "ok");
+        closeHistoryPanel();
+      });
+    });
+    el.historyList.querySelectorAll("[data-delhist]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await storeDelete("history_" + btn.dataset.delhist);
+        renderHistoryList();
+      });
+    });
+  }
+  function openHistoryPanel(){ el.historyOverlay.hidden = false; el.historyPanel.hidden = false; }
+  function closeHistoryPanel(){ el.historyOverlay.hidden = true; el.historyPanel.hidden = true; }
+  el.historyToggle.addEventListener("click", openHistoryPanel);
+  el.historyClose.addEventListener("click", closeHistoryPanel);
+  el.historyOverlay.addEventListener("click", closeHistoryPanel);
+
+  /* ---------- reference subtitle panel ---------- */
+  function openRefPanel(){ el.refOverlay.hidden = false; el.refPanel.hidden = false; }
+  function closeRefPanel(){ el.refOverlay.hidden = true; el.refPanel.hidden = true; }
+  el.refToggle.addEventListener("click", openRefPanel);
+  el.refClose.addEventListener("click", closeRefPanel);
+  el.refOverlay.addEventListener("click", closeRefPanel);
 
   function renderTranscript(){
     el.transcript.innerHTML = "";
