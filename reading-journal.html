@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>读书笔记</title>
+<style>
+  :root{
+    --paper:#F2EDE3; --card:#FFFFFF; --ink:#2B2420; --ink-soft:#7A6F62;
+    --border:#E1D8C6; --wine:#7A3B46; --wine-dark:#622F38; --wine-bg:#F3E4E6;
+    --gold:#B08A3E; --gold-bg:#F6EEDA;
+    --font-display: Georgia,"Iowan Old Style","Times New Roman",serif;
+    --font-body: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);-webkit-tap-highlight-color:transparent;padding-bottom:40px;}
+  .app{max-width:760px;margin:0 auto;padding:22px 16px 40px;}
+
+  header{margin-bottom:16px;}
+  header .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);}
+  header h1{font-family:var(--font-display);font-size:26px;margin:4px 0 4px;}
+  header p{color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin:0;max-width:640px;}
+
+  .toolbar{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap;}
+  button{font-family:var(--font-body);cursor:pointer;border:none;border-radius:9px;font-size:13.5px;font-weight:600;padding:9px 14px;min-height:38px;touch-action:manipulation;}
+  .btn-wine{background:var(--wine);color:#fff;}
+  .btn-wine:active{background:var(--wine-dark);}
+  .btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--border) !important;}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:16px;}
+  .card h2{font-family:var(--font-display);font-size:18px;margin:0 0 14px;font-weight:normal;}
+
+  .field{margin-bottom:14px;position:relative;}
+  .field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;font-weight:600;}
+  .field input, .field textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:14px;background:#FBF9F4;color:var(--ink);
+    font-family:var(--font-body);
+  }
+  .field textarea{resize:vertical;min-height:64px;line-height:1.6;}
+  #fOriginal{font-family:var(--font-display);font-size:15.5px;min-height:90px;}
+  .row2{display:flex;gap:10px;}
+  .row2 .field{flex:1;}
+
+  .field-with-btn{display:flex;gap:8px;align-items:flex-end;}
+  .field-with-btn .field{flex:1;margin-bottom:0;}
+  .paste-btn{flex:0 0 auto;background:var(--gold-bg);color:var(--gold);border:1px solid var(--gold) !important;height:42px;margin-top:20px;}
+
+  .suggest-box{
+    position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid var(--border);
+    border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,0.1);z-index:10;max-height:200px;overflow-y:auto;display:none;
+  }
+  .suggest-box.show{display:block;}
+  .suggest-item{padding:9px 12px;font-size:13.5px;cursor:pointer;border-top:1px solid var(--border);}
+  .suggest-item:first-child{border-top:none;}
+  .suggest-item:hover{background:var(--gold-bg);}
+  .suggest-item .s-book{font-weight:700;}
+  .suggest-item .s-author{color:var(--ink-soft);font-size:12px;margin-left:6px;}
+  .suggest-hint{font-size:11.5px;color:var(--gold);margin-top:4px;}
+
+  .entry-card{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#FBF9F4;cursor:pointer;}
+  .entry-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .entry-book{font-weight:700;font-size:14.5px;}
+  .entry-date{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);flex:0 0 auto;}
+  .entry-author{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .entry-quote{font-family:var(--font-display);font-size:13.5px;color:var(--ink);margin-top:8px;line-height:1.55;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+
+  .empty{text-align:center;padding:30px 10px;color:var(--ink-soft);font-size:13.5px;}
+
+  .overlay{position:fixed;inset:0;background:rgba(30,22,18,0.45);z-index:39;display:none;}
+  .overlay.show{display:block;}
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;top:6%;z-index:40;background:var(--card);
+    border-radius:20px 20px 0 0;display:none;flex-direction:column;max-width:680px;margin:0 auto;
+  }
+  .sheet.show{display:flex;}
+  .sheet-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--border);}
+  .sheet-head h2{font-family:var(--font-display);font-size:18px;margin:0;font-weight:normal;}
+  .sheet-head button{background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;padding:4px 8px;}
+  .sheet-body{flex:1;overflow-y:auto;padding:18px;}
+  .sheet-foot{padding:14px 18px;border-top:1px solid var(--border);display:flex;gap:10px;}
+  .sheet-foot .btn{flex:1;}
+
+  .filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .filter-row select, .filter-row input{padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;background:#FBF9F4;}
+  .filter-row input{flex:1;min-width:120px;}
+
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;max-width:90vw;
+    background:var(--ink);color:#fff;padding:11px 18px;border-radius:14px;font-size:13px;line-height:1.5;
+    display:none;box-shadow:0 6px 18px rgba(0,0,0,0.25);
+  }
+  .toast.show{display:block;}
+  [hidden]{display:none !important;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="eyebrow">Reading Journal</div>
+    <h1>读书笔记</h1>
+    <p>记下书里的原文、你的感受、以及打算怎么用。书名和作者输入过一次之后，再输入时会自动提示，不用重复打全。</p>
+  </header>
+
+  <div class="card">
+    <h2>记一条笔记</h2>
+    <div class="row2">
+      <div class="field">
+        <label>日期</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="field" style="position:relative;">
+        <label>书籍</label>
+        <input type="text" id="fBook" placeholder="书名" autocomplete="off">
+        <div class="suggest-box" id="bookSuggest"></div>
+      </div>
+      <div class="field" style="position:relative;">
+        <label>作者</label>
+        <input type="text" id="fAuthor" placeholder="作者" autocomplete="off">
+        <div class="suggest-box" id="authorSuggest"></div>
+      </div>
+    </div>
+
+    <div class="field-with-btn">
+      <div class="field">
+        <label>原文摘录</label>
+        <textarea id="fOriginal" placeholder="把书里的原句/段落粘贴或输入在这里"></textarea>
+      </div>
+      <button class="paste-btn" id="pasteBtn" type="button" title="从剪贴板粘贴">📋 粘贴</button>
+    </div>
+
+    <div class="field">
+      <label>我的感受</label>
+      <textarea id="fFeeling" placeholder="读到这段时你的想法、触动、疑问…"></textarea>
+    </div>
+    <div class="field">
+      <label>应用 / 打算怎么用</label>
+      <textarea id="fApplication" placeholder="这段内容可以怎么用在工作、生活或者思考上…"></textarea>
+    </div>
+
+    <button class="btn-wine" id="saveBtn" style="width:100%;">保存这条笔记</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-ghost" id="viewAllBtn">查看全部笔记</button>
+    <button class="btn-ghost" id="exportBtn">导出 Excel</button>
+    <button class="btn-ghost" id="backupBtn" title="双击可导入备份">备份数据</button>
+    <input type="file" id="importFile" accept=".json" hidden>
+  </div>
+
+  <div class="card">
+    <h2>最近记录</h2>
+    <div id="recentList"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+
+<div class="sheet" id="allSheet">
+  <div class="sheet-head"><h2>全部笔记</h2><button id="closeAllSheet">×</button></div>
+  <div class="sheet-body">
+    <div class="filter-row">
+      <select id="filterBook"><option value="">全部书籍</option></select>
+      <input type="text" id="searchBox" placeholder="搜索原文/感受/应用…">
+    </div>
+    <div id="allList"></div>
+  </div>
+</div>
+
+<div class="sheet" id="exportSheet" style="top:auto;height:auto;">
+  <div class="sheet-head"><h2>导出 Excel</h2><button id="closeExportSheet">×</button></div>
+  <div class="sheet-body">
+    <div class="field">
+      <label>导出范围</label>
+      <select id="exportScope">
+        <option value="month">本月</option>
+        <option value="year">本年</option>
+        <option value="all">全部</option>
+      </select>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn-wine" id="doExportBtn" style="flex:1;">生成并下载</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ---------- storage: window.storage 优先，否则 IndexedDB 做真正的本地持久化 ---------- */
+const memoryStore = {};
+const hasRealStorage = () => typeof window.storage !== "undefined" && window.storage !== null;
+const hasIdb = () => typeof indexedDB !== "undefined";
+let idbPromise = null;
+function openIdb(){
+  if(!idbPromise){
+    idbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open("reading_journal_db", 1);
+      req.onupgradeneeded = () => { const db = req.result; if(!db.objectStoreNames.contains("kv")) db.createObjectStore("kv"); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return idbPromise;
+}
+function idbGet(key){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readonly"); const r=tx.objectStore("kv").get(key); r.onsuccess=()=>res(r.result!=null?r.result:null); r.onerror=()=>rej(r.error); })); }
+function idbSet(key,value){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").put(value,key); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); })); }
+function idbDelete(key){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").delete(key); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); })); }
+function idbListKeys(prefix){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readonly"); const r=tx.objectStore("kv").getAllKeys(); r.onsuccess=()=>res((r.result||[]).map(String).filter(k=>k.startsWith(prefix))); r.onerror=()=>rej(r.error); })); }
+
+async function storeGet(key){
+  if(hasRealStorage()){ try{ const r = await window.storage.get(key, false); return r ? r.value : null; }catch(e){ return null; } }
+  if(hasIdb()){ try{ return await idbGet(key); }catch(e){ console.error(e); } }
+  return Object.prototype.hasOwnProperty.call(memoryStore,key) ? memoryStore[key] : null;
+}
+async function storeSet(key, value){
+  if(hasRealStorage()){ try{ await window.storage.set(key, value, false); return true; }catch(e){ return false; } }
+  if(hasIdb()){ try{ await idbSet(key, value); return true; }catch(e){ console.error(e); } }
+  memoryStore[key] = value; return true;
+}
+async function storeDelete(key){
+  if(hasRealStorage()){ try{ await window.storage.delete(key, false); return true; }catch(e){ return false; } }
+  if(hasIdb()){ try{ await idbDelete(key); return true; }catch(e){ console.error(e); } }
+  delete memoryStore[key]; return true;
+}
+async function storeList(prefix){
+  if(hasRealStorage()){ try{ const r = await window.storage.list(prefix, false); return r ? r.keys : []; }catch(e){ return []; } }
+  if(hasIdb()){ try{ return await idbListKeys(prefix); }catch(e){ console.error(e); } }
+  return Object.keys(memoryStore).filter(k => k.startsWith(prefix));
+}
+
+function uid(){ return "n_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8); }
+function escapeHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
+let notes = [];
+let editingId = null;
+
+const el = {};
+["fDate","fBook","fAuthor","bookSuggest","authorSuggest","fOriginal","pasteBtn","fFeeling","fApplication","saveBtn",
+ "viewAllBtn","exportBtn","backupBtn","importFile","recentList",
+ "overlay","allSheet","closeAllSheet","filterBook","searchBox","allList",
+ "exportSheet","closeExportSheet","exportScope","doExportBtn","toast"
+].forEach(id => el[id] = document.getElementById(id));
+
+function showToast(msg){
+  el.toast.textContent = msg;
+  el.toast.classList.add("show");
+  setTimeout(() => el.toast.classList.remove("show"), 2200);
+}
+
+/* ---------- load / persist ---------- */
+async function loadNotes(){
+  const keys = await storeList("note_");
+  const arr = [];
+  for(const k of keys){
+    const raw = await storeGet(k);
+    if(raw){ try{ arr.push(JSON.parse(raw)); }catch(e){} }
+  }
+  arr.sort((a,b) => (b.date||"").localeCompare(a.date||"") || (b.createdAt||0)-(a.createdAt||0));
+  notes = arr;
+}
+async function saveNoteStore(n){ await storeSet("note_" + n.id, JSON.stringify(n)); }
+async function deleteNoteStore(id){ await storeDelete("note_" + id); }
+
+/* ---------- book/author memory ---------- */
+function getBookAuthorMap(){
+  const map = {};
+  notes.forEach(n => { if(n.book && n.author && !map[n.book]) map[n.book] = n.author; });
+  return map;
+}
+function getDistinctBooks(){ return Array.from(new Set(notes.map(n=>n.book).filter(Boolean))); }
+function getDistinctAuthors(){ return Array.from(new Set(notes.map(n=>n.author).filter(Boolean))); }
+
+function renderSuggest(box, matches, onPick){
+  if(matches.length === 0){ box.classList.remove("show"); box.innerHTML=""; return; }
+  box.innerHTML = matches.map((m,i) => `<div class="suggest-item" data-i="${i}"><span class="s-book">${escapeHtml(m.label)}</span>${m.sub?`<span class="s-author">${escapeHtml(m.sub)}</span>`:""}</div>`).join("");
+  box.classList.add("show");
+  box.querySelectorAll(".suggest-item").forEach((item,i) => {
+    item.addEventListener("click", () => { onPick(matches[i]); box.classList.remove("show"); });
+  });
+}
+
+el.fBook.addEventListener("input", () => {
+  const q = el.fBook.value.trim().toLowerCase();
+  const bookAuthorMap = getBookAuthorMap();
+  if(!q){ el.bookSuggest.classList.remove("show"); return; }
+  const matches = getDistinctBooks()
+    .filter(b => b.toLowerCase().includes(q))
+    .slice(0,6)
+    .map(b => ({ label:b, sub:bookAuthorMap[b]||"", book:b, author:bookAuthorMap[b]||"" }));
+  renderSuggest(el.bookSuggest, matches, (m) => {
+    el.fBook.value = m.book;
+    if(m.author) el.fAuthor.value = m.author;
+  });
+});
+el.fAuthor.addEventListener("input", () => {
+  const q = el.fAuthor.value.trim().toLowerCase();
+  if(!q){ el.authorSuggest.classList.remove("show"); return; }
+  const matches = getDistinctAuthors().filter(a => a.toLowerCase().includes(q)).slice(0,6).map(a => ({ label:a, author:a }));
+  renderSuggest(el.authorSuggest, matches, (m) => { el.fAuthor.value = m.author; });
+});
+document.addEventListener("click", (e) => {
+  if(!el.fBook.contains(e.target) && !el.bookSuggest.contains(e.target)) el.bookSuggest.classList.remove("show");
+  if(!el.fAuthor.contains(e.target) && !el.authorSuggest.contains(e.target)) el.authorSuggest.classList.remove("show");
+});
+
+/* ---------- paste from clipboard ---------- */
+el.pasteBtn.addEventListener("click", async () => {
+  try{
+    const text = await navigator.clipboard.readText();
+    if(text){ el.fOriginal.value = text; showToast("已粘贴剪贴板内容"); }
+    else{ showToast("剪贴板是空的"); }
+  }catch(e){
+    showToast("无法读取剪贴板，请手动粘贴（Ctrl/Cmd+V）到原文框里");
+  }
+});
+
+/* ---------- save note ---------- */
+function resetForm(){
+  editingId = null;
+  el.fDate.value = todayStr();
+  el.fBook.value = ""; el.fAuthor.value = "";
+  el.fOriginal.value = ""; el.fFeeling.value = ""; el.fApplication.value = "";
+  el.saveBtn.textContent = "保存这条笔记";
+}
+resetForm();
+
+el.saveBtn.addEventListener("click", async () => {
+  const date = el.fDate.value || todayStr();
+  const book = el.fBook.value.trim();
+  const author = el.fAuthor.value.trim();
+  const original = el.fOriginal.value.trim();
+  const feeling = el.fFeeling.value.trim();
+  const application = el.fApplication.value.trim();
+  if(!book && !original && !feeling){ showToast("至少填一点内容再保存吧"); return; }
+
+  const note = {
+    id: editingId || uid(),
+    date, book, author, original, feeling, application,
+    createdAt: editingId ? (notes.find(n=>n.id===editingId)||{}).createdAt || Date.now() : Date.now()
+  };
+  await saveNoteStore(note);
+  await loadNotes();
+  renderRecent();
+  showToast(editingId ? "已更新" : "已保存");
+  resetForm();
+});
+
+/* ---------- recent list (最近10天) ---------- */
+function renderRecent(){
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 10);
+  const cutoffStr = cutoff.getFullYear()+"-"+String(cutoff.getMonth()+1).padStart(2,"0")+"-"+String(cutoff.getDate()).padStart(2,"0");
+  let list = notes.filter(n => (n.date||"") >= cutoffStr);
+  if(list.length === 0) list = notes.slice(0, 10);
+
+  if(list.length === 0){
+    el.recentList.innerHTML = `<div class="empty">还没有笔记，上面写第一条吧。</div>`;
+    return;
+  }
+  el.recentList.innerHTML = list.map(n => renderEntryCard(n)).join("");
+  el.recentList.querySelectorAll(".entry-card").forEach(c => c.addEventListener("click", () => openEdit(c.dataset.id)));
+}
+
+function renderEntryCard(n){
+  return `
+    <div class="entry-card" data-id="${n.id}">
+      <div class="entry-top">
+        <span class="entry-book">${escapeHtml(n.book||"（未填书名）")}</span>
+        <span class="entry-date">${escapeHtml(n.date||"")}</span>
+      </div>
+      ${n.author?`<div class="entry-author">${escapeHtml(n.author)}</div>`:""}
+      ${n.original?`<div class="entry-quote">${escapeHtml(n.original)}</div>`:""}
+    </div>
+  `;
+}
+
+function openEdit(id){
+  const n = notes.find(x => x.id === id);
+  if(!n) return;
+  editingId = id;
+  el.fDate.value = n.date || todayStr();
+  el.fBook.value = n.book || "";
+  el.fAuthor.value = n.author || "";
+  el.fOriginal.value = n.original || "";
+  el.fFeeling.value = n.feeling || "";
+  el.fApplication.value = n.application || "";
+  el.saveBtn.textContent = "保存修改";
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+/* ---------- 查看全部笔记 ---------- */
+function openSheet(s){ el.overlay.classList.add("show"); s.classList.add("show"); }
+function closeSheets(){ el.overlay.classList.remove("show"); el.allSheet.classList.remove("show"); el.exportSheet.classList.remove("show"); }
+el.overlay.addEventListener("click", closeSheets);
+el.closeAllSheet.addEventListener("click", closeSheets);
+el.closeExportSheet.addEventListener("click", closeSheets);
+
+el.viewAllBtn.addEventListener("click", () => {
+  el.filterBook.innerHTML = '<option value="">全部书籍</option>' + getDistinctBooks().map(b=>`<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join("");
+  renderAllList();
+  openSheet(el.allSheet);
+});
+el.filterBook.addEventListener("change", renderAllList);
+el.searchBox.addEventListener("input", renderAllList);
+
+function renderAllList(){
+  const book = el.filterBook.value;
+  const q = el.searchBox.value.trim().toLowerCase();
+  const list = notes.filter(n => {
+    if(book && n.book !== book) return false;
+    if(q){
+      const hay = (n.original+" "+n.feeling+" "+n.application+" "+n.book+" "+n.author).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  if(list.length === 0){
+    el.allList.innerHTML = `<div class="empty">没有符合条件的笔记。</div>`;
+    return;
+  }
+  el.allList.innerHTML = list.map(n => renderEntryCard(n)).join("");
+  el.allList.querySelectorAll(".entry-card").forEach(c => c.addEventListener("click", () => { openEdit(c.dataset.id); closeSheets(); }));
+}
+
+/* ---------- export ---------- */
+el.exportBtn.addEventListener("click", () => openSheet(el.exportSheet));
+
+el.doExportBtn.addEventListener("click", () => {
+  try{
+    if(typeof XLSX === "undefined") throw new Error("XLSX_NOT_LOADED");
+    const scope = el.exportScope.value;
+    const now = new Date();
+    const curMonth = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+    const curYear = String(now.getFullYear());
+
+    let list = notes;
+    let labelSuffix = "全部";
+    if(scope === "month"){
+      list = notes.filter(n => (n.date||"").slice(0,7) === curMonth);
+      labelSuffix = curMonth;
+    } else if(scope === "year"){
+      list = notes.filter(n => (n.date||"").slice(0,4) === curYear);
+      labelSuffix = curYear + "年";
+    }
+    if(list.length === 0){ showToast("这个范围里还没有笔记"); return; }
+
+    const rows = list.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(n => ({
+      "日期": n.date||"", "书籍": n.book||"", "作者": n.author||"",
+      "原文": n.original||"", "我的感受": n.feeling||"", "应用": n.application||""
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{wch:11},{wch:18},{wch:14},{wch:36},{wch:30},{wch:30}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "读书笔记");
+    XLSX.writeFile(wb, "读书笔记_" + labelSuffix + ".xlsx");
+    showToast("已导出 " + list.length + " 条");
+    closeSheets();
+  }catch(err){
+    console.error(err);
+    if(/XLSX_NOT_LOADED|Failed to fetch|NetworkError/i.test(String(err.message))){
+      showToast("导出组件加载失败，建议把网页下载到本地用浏览器打开后再导出");
+    } else {
+      showToast("导出失败：" + (err.message||err));
+    }
+  }
+});
+
+/* ---------- backup ---------- */
+el.backupBtn.addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(notes, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "读书笔记_备份.json";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+el.backupBtn.addEventListener("dblclick", () => el.importFile.click());
+el.importFile.addEventListener("change", async () => {
+  const file = el.importFile.files[0];
+  if(!file) return;
+  try{
+    const data = JSON.parse(await file.text());
+    for(const n of data) if(n.id) await saveNoteStore(n);
+    await loadNotes();
+    renderRecent();
+    showToast("已导入 " + data.length + " 条笔记");
+  }catch(e){
+    showToast("导入失败，请确认文件格式正确");
+  }
+  el.importFile.value = "";
+});
+
+/* ---------- init ---------- */
+(async function init(){
+  await loadNotes();
+  renderRecent();
+})();
+
+})();
+</script>
+</body>
+</html>
