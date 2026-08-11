@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>听力笔记 · Listening Notes</title>
+<style>
+  :root{
+    --paper: #F1F3EE;
+    --paper-line: rgba(30,42,50,0.08);
+    --ink: #1E2A32;
+    --ink-soft: #5B6B70;
+    --card: #FFFFFF;
+    --accent: #C98A3E;      /* amber highlighter */
+    --accent-soft: #F3DDB2;
+    --teal: #3F7C74;        /* play / primary actions */
+    --teal-dark: #2C5B55;
+    --rose: #B4533C;        /* saved word */
+    --border: #DDE1D8;
+    --danger: #B4533C;
+    --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-tap-highlight-color: transparent;
+    padding-bottom:88px;
+  }
+  .app{max-width:760px;margin:0 auto;padding:20px 16px 40px;}
+  header{padding:8px 4px 20px;}
+  header h1{
+    font-family:var(--font-display);
+    font-size:26px;
+    margin:0 0 4px;
+    letter-spacing:0.2px;
+  }
+  header p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.5;}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:16px;
+    box-shadow:0 1px 2px rgba(30,42,50,0.04);
+  }
+  .card h2{font-family:var(--font-display);font-size:16px;margin:0 0 12px;font-weight:600;}
+  label{display:block;font-size:13px;color:var(--ink-soft);margin-bottom:6px;}
+  input[type=password], input[type=text], textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    font-size:15px;
+    background:#FAFBF8;
+    color:var(--ink);
+    font-family:var(--font-body);
+  }
+  textarea{resize:vertical;line-height:1.5;}
+    color:var(--ink);
+  }
+  input[type=password]:focus, input[type=text]:focus{outline:2px solid var(--teal);outline-offset:1px;}
+  .row{margin-bottom:12px;}
+  .row-inline{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);}
+  .row-inline input[type=checkbox]{width:16px;height:16px;}
+
+  .file-drop{
+    border:1.5px dashed var(--border);
+    border-radius:10px;
+    padding:16px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:14px;
+    cursor:pointer;
+    background:#FAFBF8;
+  }
+  .file-drop.has-file{border-color:var(--teal);color:var(--ink);}
+  input[type=file]{display:none;}
+
+  button{
+    font-family:var(--font-body);
+    cursor:pointer;
+    border:none;
+    border-radius:8px;
+    font-size:15px;
+    padding:10px 16px;
+    min-height:44px;
+    touch-action:manipulation;
+  }
+  .btn-primary{background:var(--teal);color:#fff;width:100%;font-weight:600;}
+  .btn-primary:disabled{background:#A9BDBA;cursor:not-allowed;}
+  .btn-primary:active:not(:disabled){background:var(--teal-dark);}
+  .btn-ghost{background:transparent;color:var(--teal-dark);border:1px solid var(--border);}
+  .btn-small{padding:6px 10px;min-height:36px;font-size:13px;border-radius:7px;}
+
+  .status{font-size:13px;margin-top:10px;color:var(--ink-soft);min-height:18px;line-height:1.5;}
+  .status.error{color:var(--danger);}
+  .status.ok{color:var(--teal-dark);}
+
+  .player-bar{position:sticky;top:0;z-index:5;background:var(--paper);padding:8px 0 12px;}
+  .player-bar audio{width:100%;}
+
+  .transcript{
+    background:
+      repeating-linear-gradient(
+        var(--card),
+        var(--card) 43px,
+        var(--paper-line) 43px,
+        var(--paper-line) 44px
+      );
+    border:1px solid var(--border);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  .sentence{
+    display:flex;
+    gap:10px;
+    padding:10px 14px;
+    align-items:flex-start;
+    border-bottom:1px solid transparent;
+  }
+  .sentence.playing{background:rgba(63,124,116,0.07);}
+  .s-time{
+    flex:0 0 auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+    padding-top:2px;
+  }
+  .play-btn{
+    width:30px;height:30px;border-radius:50%;
+    background:var(--teal);color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;padding:0;min-height:0;flex:0 0 auto;
+  }
+  .play-btn.playing{background:var(--rose);}
+  .s-ts{font-family:var(--font-mono);font-size:10px;color:var(--ink-soft);}
+  .s-body{flex:1;min-width:0;padding-top:2px;}
+  .s-en{font-size:16px;line-height:1.65;}
+  .s-zh{font-size:14px;line-height:1.6;color:var(--ink-soft);margin-top:4px;cursor:pointer;border-radius:6px;padding:2px 4px;margin-left:-4px;}
+  .s-zh:hover{background:rgba(63,124,116,0.08);}
+  .s-zh.zh-hidden{opacity:0.6;font-style:italic;}
+  .s-zh.zh-hidden::before{content:"👁 ";font-style:normal;}
+  .word-sheet .zh-gloss{font-size:16px;color:var(--teal-dark);font-weight:600;margin-bottom:8px;}
+  .word{
+    border-bottom:1.5px dotted var(--accent);
+    cursor:pointer;
+    border-radius:2px;
+    padding:0 1px;
+  }
+  .word:hover, .word:focus{background:var(--accent-soft);outline:none;}
+  .word.saved{background:rgba(180,83,60,0.12);border-bottom-color:var(--rose);}
+
+  .empty{padding:40px 20px;text-align:center;color:var(--ink-soft);font-size:14px;}
+
+  /* vocab FAB + panel */
+  .vocab-fab{
+    position:fixed;right:16px;bottom:16px;z-index:20;
+    background:var(--ink);color:#fff;border-radius:24px;
+    padding:12px 18px;font-size:14px;font-weight:600;
+    box-shadow:0 4px 14px rgba(0,0,0,0.2);
+    display:flex;align-items:center;gap:6px;
+  }
+  .vocab-fab span{background:var(--accent);color:var(--ink);border-radius:10px;padding:1px 7px;font-size:12px;font-family:var(--font-mono);}
+
+  .overlay-bg{
+    position:fixed;inset:0;background:rgba(20,26,28,0.4);z-index:29;
+  }
+  .vocab-panel{
+    position:fixed;right:0;top:0;bottom:0;width:min(380px,92vw);
+    background:var(--card);z-index:30;
+    box-shadow:-6px 0 20px rgba(0,0,0,0.12);
+    display:flex;flex-direction:column;
+  }
+  .vocab-header{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:16px;border-bottom:1px solid var(--border);
+    font-family:var(--font-display);font-size:18px;
+  }
+  .vocab-header button{background:none;color:var(--ink-soft);font-size:20px;padding:4px 8px;min-height:0;}
+  .vocab-list{flex:1;overflow-y:auto;padding:8px 16px;}
+  .vocab-item{padding:12px 0;border-bottom:1px solid var(--paper-line);}
+  .vocab-item .vw{font-weight:700;font-size:15px;}
+  .vocab-item .vpos{font-size:11px;color:var(--teal-dark);text-transform:uppercase;letter-spacing:0.3px;margin-left:6px;}
+  .vocab-item .vdef{font-size:13px;color:var(--ink-soft);margin-top:3px;line-height:1.5;}
+  .vocab-item .vctx{font-size:12px;color:var(--ink-soft);margin-top:4px;font-style:italic;opacity:0.8;}
+  .vocab-item .vactions{margin-top:6px;}
+  .vocab-footer{padding:12px 16px;border-top:1px solid var(--border);}
+
+  /* word bottom sheet */
+  .sheet-bg{position:fixed;inset:0;background:rgba(20,26,28,0.35);z-index:39;}
+  .word-sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:var(--card);
+    border-radius:16px 16px 0 0;
+    padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+    max-width:760px;margin:0 auto;
+    box-shadow:0 -6px 24px rgba(0,0,0,0.18);
+  }
+  .word-sheet h3{margin:0 0 2px;font-family:var(--font-display);font-size:22px;}
+  .word-sheet .pos{font-size:12px;color:var(--teal-dark);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;}
+  .word-sheet .def{font-size:15px;line-height:1.6;margin-bottom:8px;white-space:pre-line;}
+  .word-sheet .phonetic{font-family:var(--font-mono);font-size:13px;color:var(--ink-soft);margin-bottom:6px;}
+  .word-sheet .ex{font-size:13px;color:var(--ink-soft);font-style:italic;line-height:1.5;margin-bottom:14px;}
+  .word-sheet .sheet-actions{display:flex;gap:10px;}
+  .word-sheet .sheet-actions button{flex:1;}
+  .loading-dots{color:var(--ink-soft);font-size:14px;}
+
+  .hint{font-size:12px;color:var(--ink-soft);line-height:1.6;margin-top:10px;}
+  a{color:var(--teal-dark);}
+  [hidden]{display:none !important;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>听力笔记 · Listening Notes</h1>
+    <p>导入一段英文音频，逐句听写、中英对照、点词查词、一键加入生词本。</p>
+  </header>
+
+  <section class="card" id="setupCard">
+    <h2>1 · 导入音频</h2>
+    <div class="row">
+      <label>音频文件（建议先用 1-2 分钟的短音频测试）</label>
+      <label class="file-drop" id="fileDrop" for="audioFile">点击选择音频文件</label>
+      <input type="file" id="audioFile" accept="audio/*,video/mp4">
+    </div>
+    <div class="row">
+      <label>参考字幕 / 原文（可选，粘贴进来可以对照识别是否准确）</label>
+      <textarea id="referenceText" rows="4" placeholder="如果你手头有这段音频对应的原文或字幕，粘贴在这里，识别完成后可以随时打开对照查看"></textarea>
+    </div>
+    <button class="btn-primary" id="transcribeBtn" disabled>开始识别（免费，无需登录）</button>
+    <div class="status" id="status"></div>
+    <div class="hint">流程：语音识别模型在你手机/电脑本地运行，听写英文原文并切句 → 免费翻译接口生成中文对照。点任意单词可查英文释义，可一键收进生词本。首次使用需要下载一次识别模型（约 40-75MB），之后会被浏览器缓存，不用重复下载。</div>
+  </section>
+
+  <div class="player-bar" id="playerBar" hidden>
+    <audio id="player" controls></audio>
+  </div>
+
+  <div class="transcript" id="transcript"></div>
+</div>
+
+<button class="vocab-fab" id="vocabToggle">生词本 <span id="vocabCount">0</span></button>
+<button class="vocab-fab" id="historyToggle" style="right:auto;left:16px;">历史记录</button>
+<button class="vocab-fab" id="refToggle" style="right:auto;left:16px;bottom:76px;" hidden>参考字幕对照</button>
+
+<div id="vocabOverlay" class="overlay-bg" hidden></div>
+<aside id="vocabPanel" class="vocab-panel" hidden>
+  <div class="vocab-header">
+    <span>生词本</span>
+    <button id="vocabClose" aria-label="关闭">×</button>
+  </div>
+  <div class="vocab-list" id="vocabList"></div>
+  <div class="vocab-footer">
+    <button class="btn-ghost" id="exportVocab" style="width:100%;">导出生词本（.txt）</button>
+  </div>
+</aside>
+
+<div id="historyOverlay" class="overlay-bg" hidden></div>
+<aside id="historyPanel" class="vocab-panel" hidden>
+  <div class="vocab-header">
+    <span>历史记录</span>
+    <button id="historyClose" aria-label="关闭">×</button>
+  </div>
+  <div class="vocab-list" id="historyList"></div>
+</aside>
+
+<div id="refOverlay" class="overlay-bg" hidden></div>
+<aside id="refPanel" class="vocab-panel" hidden>
+  <div class="vocab-header">
+    <span>参考字幕对照</span>
+    <button id="refClose" aria-label="关闭">×</button>
+  </div>
+  <div class="vocab-list" id="refContent" style="white-space:pre-line;font-size:14px;line-height:1.7;"></div>
+</aside>
+
+<div id="sheetOverlay" class="sheet-bg" hidden></div>
+<div id="wordSheet" class="word-sheet" hidden></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- storage wrapper ----------
+     优先用 window.storage（Claude 网页里打开时可用）；
+     否则用浏览器自带的 IndexedDB 做真正的本地持久化（下载到本地用浏览器打开时用这个）
+  ---------- */
+  const memoryStore = {};
+  const hasRealStorage = () => typeof window.storage !== "undefined" && window.storage !== null;
+  const hasIdb = () => typeof indexedDB !== "undefined";
+  let idbPromise = null;
+  function openIdb(){
+    if(!idbPromise){
+      idbPromise = new Promise((resolve, reject) => {
+        const req = indexedDB.open("listening_notes_db", 1);
+        req.onupgradeneeded = () => { const db = req.result; if(!db.objectStoreNames.contains("kv")) db.createObjectStore("kv"); };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+    return idbPromise;
+  }
+  function idbGet(key){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readonly"); const r=tx.objectStore("kv").get(key); r.onsuccess=()=>res(r.result!=null?r.result:null); r.onerror=()=>rej(r.error); })); }
+  function idbSet(key,value){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").put(value,key); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); })); }
+  function idbDelete(key){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").delete(key); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); })); }
+  function idbListKeys(prefix){ return openIdb().then(db => new Promise((res,rej)=>{ const tx=db.transaction("kv","readonly"); const r=tx.objectStore("kv").getAllKeys(); r.onsuccess=()=>res((r.result||[]).map(String).filter(k=>k.startsWith(prefix))); r.onerror=()=>rej(r.error); })); }
+
+  async function storeGet(key){
+    if(hasRealStorage()){
+      try{
+        const r = await window.storage.get(key, false);
+        return r ? r.value : null;
+      }catch(e){ return null; }
+    }
+    if(hasIdb()){ try{ return await idbGet(key); }catch(e){ console.error(e); } }
+    return Object.prototype.hasOwnProperty.call(memoryStore,key) ? memoryStore[key] : null;
+  }
+  async function storeSet(key,value){
+    if(hasRealStorage()){
+      try{ await window.storage.set(key, value, false); return true; }catch(e){ return false; }
+    }
+    if(hasIdb()){ try{ await idbSet(key,value); return true; }catch(e){ console.error(e); } }
+    memoryStore[key] = value; return true;
+  }
+  async function storeDelete(key){
+    if(hasRealStorage()){
+      try{ await window.storage.delete(key, false); return true; }catch(e){ return false; }
+    }
+    if(hasIdb()){ try{ await idbDelete(key); return true; }catch(e){ console.error(e); } }
+    delete memoryStore[key]; return true;
+  }
+  async function storeList(prefix){
+    if(hasRealStorage()){
+      try{
+        const r = await window.storage.list(prefix, false);
+        return r ? r.keys : [];
+      }catch(e){ return []; }
+    }
+    if(hasIdb()){ try{ return await idbListKeys(prefix); }catch(e){ console.error(e); } }
+    return Object.keys(memoryStore).filter(k => k.startsWith(prefix));
+  }
+
+  function safeKey(word){
+    return "vocab_" + word.toLowerCase().replace(/[^a-z']/g, "_");
+  }
+
+  /* ---------- state ---------- */
+  const state = {
+    segments: [],     // {start, end, text, zh}
+    defCache: {},      // word -> {pos, definition, example}
+    savedWords: new Set(), // lowercase words currently in vocab
+    currentSheetWord: null,
+    currentSentenceIdx: null,
+  };
+
+  /* ---------- elements ---------- */
+  const el = {
+    fileDrop: document.getElementById("fileDrop"),
+    audioFile: document.getElementById("audioFile"),
+    referenceText: document.getElementById("referenceText"),
+    transcribeBtn: document.getElementById("transcribeBtn"),
+    status: document.getElementById("status"),
+    playerBar: document.getElementById("playerBar"),
+    player: document.getElementById("player"),
+    transcript: document.getElementById("transcript"),
+    vocabToggle: document.getElementById("vocabToggle"),
+    vocabCount: document.getElementById("vocabCount"),
+    vocabOverlay: document.getElementById("vocabOverlay"),
+    vocabPanel: document.getElementById("vocabPanel"),
+    vocabClose: document.getElementById("vocabClose"),
+    vocabList: document.getElementById("vocabList"),
+    exportVocab: document.getElementById("exportVocab"),
+    sheetOverlay: document.getElementById("sheetOverlay"),
+    wordSheet: document.getElementById("wordSheet"),
+    historyToggle: document.getElementById("historyToggle"),
+    historyOverlay: document.getElementById("historyOverlay"),
+    historyPanel: document.getElementById("historyPanel"),
+    historyClose: document.getElementById("historyClose"),
+    historyList: document.getElementById("historyList"),
+    refToggle: document.getElementById("refToggle"),
+    refOverlay: document.getElementById("refOverlay"),
+    refPanel: document.getElementById("refPanel"),
+    refClose: document.getElementById("refClose"),
+    refContent: document.getElementById("refContent"),
+  };
+
+  let selectedFile = null;
+  let currentReferenceText = "";
+  let currentHistoryId = null;
+
+  /* ---------- init: restore vocab ---------- */
+  (async function init(){
+    await refreshVocabBadgeAndSet();
+    await renderHistoryList();
+  })();
+
+  el.audioFile.addEventListener("change", () => {
+    const f = el.audioFile.files[0];
+    if(!f) return;
+    selectedFile = f;
+    el.fileDrop.textContent = f.name + "（" + (f.size/1024/1024).toFixed(1) + " MB）";
+    el.fileDrop.classList.add("has-file");
+    el.player.src = URL.createObjectURL(f);
+    el.playerBar.hidden = false;
+    updateTranscribeEnabled();
+  });
+
+  function updateTranscribeEnabled(){
+    el.transcribeBtn.disabled = !selectedFile;
+  }
+
+  function setStatus(msg, kind){
+    el.status.textContent = msg || "";
+    el.status.className = "status" + (kind ? " " + kind : "");
+  }
+
+  /* ---------- local speech recognition (transformers.js, runs in-browser, no key needed) ---------- */
+  let asrPipelinePromise = null;
+
+  function onModelProgress(p){
+    if(p.status === "progress"){
+      const pct = p.progress ? Math.round(p.progress) : 0;
+      setStatus("正在下载语音识别模型（首次使用，之后会缓存）… " + pct + "%");
+    }else if(p.status === "done"){
+      setStatus("模型准备完毕，正在识别语音，请耐心等待…", "ok");
+    }
+  }
+
+  async function getAsrPipeline(){
+    if(!asrPipelinePromise){
+      asrPipelinePromise = (async () => {
+        const { pipeline, env } = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2");
+        env.allowLocalModels = false;
+        return pipeline("automatic-speech-recognition", "Xenova/whisper-tiny.en", {
+          progress_callback: onModelProgress
+        });
+      })();
+    }
+    return asrPipelinePromise;
+  }
+
+  /* ---------- 音频解码为 16kHz 单声道，供分段识别使用 ---------- */
+  async function decodeAudioToMono16k(file){
+    const arrayBuffer = await file.arrayBuffer();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioCtx();
+    let audioBuffer;
+    try{
+      audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    }finally{
+      try{ audioCtx.close(); }catch(e){}
+    }
+    const targetRate = 16000;
+    const duration = audioBuffer.duration;
+    const offlineCtx = new OfflineAudioContext(1, Math.ceil(duration*targetRate), targetRate);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineCtx.destination);
+    source.start(0);
+    const rendered = await offlineCtx.startRendering();
+    return { data: rendered.getChannelData(0), sampleRate: targetRate, duration };
+  }
+
+  function sliceAudioChunks(float32, sampleRate, chunkSeconds){
+    const chunkSize = Math.floor(chunkSeconds * sampleRate);
+    const chunks = [];
+    for(let start=0; start<float32.length; start+=chunkSize){
+      const end = Math.min(start+chunkSize, float32.length);
+      chunks.push({ data: float32.slice(start, end), startTime: start/sampleRate });
+    }
+    return chunks;
+  }
+
+  function wordsToSentences(words, offsetSec){
+    if(words.length === 0) return [];
+    const sentences = [];
+    let cur = [];
+    for(const w of words){
+      cur.push(w);
+      const t = (w.text||"").trim();
+      const looksLikeSentenceEnd = /[.!?][")'\]]?$/.test(t);
+      if(looksLikeSentenceEnd && cur.length >= 3){
+        sentences.push(cur);
+        cur = [];
+      }
+    }
+    if(cur.length){
+      if(sentences.length > 0 && cur.length < 3){
+        sentences[sentences.length-1] = sentences[sentences.length-1].concat(cur);
+      }else{
+        sentences.push(cur);
+      }
+    }
+    return sentences.map(ws => {
+      const text = ws.map(w => w.text).join("").replace(/\s+/g," ").trim();
+      const first = ws[0], last = ws[ws.length-1];
+      const start = offsetSec + ((first.timestamp && first.timestamp[0]) || 0);
+      let endRel = last.timestamp && last.timestamp[1];
+      if(endRel == null) endRel = ((last.timestamp && last.timestamp[0]) != null ? last.timestamp[0] : 0) + 1;
+      return { start, end: offsetSec + endRel, text, zh: "" };
+    }).filter(s => s.text.length > 0);
+  }
+
+  async function transcribeChunk(transcriber, floatData){
+    const output = await transcriber(floatData, { return_timestamps: "word" });
+    const words = (output.chunks || []).filter(c => c.text && c.text.trim().length > 0);
+    if(words.length === 0 && output.text && output.text.trim()){
+      return [{ text: output.text.trim(), timestamp: [0, null] }];
+    }
+    return words;
+  }
+
+  const CHUNK_SECONDS = 60; // 每段独立识别，降低单次内存占用，避免长音频被系统判定占用过多内存而杀掉页面
+
+  /* ---------- free translation (unofficial public endpoint, no key) ---------- */
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+  async function translateOne(text){
+    const res = await fetch(
+      "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=" + encodeURIComponent(text)
+    );
+    if(!res.ok) throw new Error("翻译请求失败 " + res.status);
+    const data = await res.json();
+    return (data[0] || []).map(p => p[0]).join("");
+  }
+
+  async function translateSentences(sentences, onProgress){
+    const out = [];
+    for(let i=0;i<sentences.length;i++){
+      try{
+        out.push(await translateOne(sentences[i]));
+      }catch(e){
+        out.push("（翻译失败，可稍后重试）");
+      }
+      if(onProgress) onProgress(i+1, sentences.length);
+      await sleep(120);
+    }
+    return out;
+  }
+
+  async function translateWord(word){
+    try{
+      const zh = await translateOne(word);
+      return zh || "";
+    }catch(e){
+      return "";
+    }
+  }
+
+  /* ---------- free English-English dictionary (no key) ---------- */
+  async function defineWord(word){
+    const key = word.toLowerCase();
+    if(state.defCache[key]) return state.defCache[key];
+    const res = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(key));
+    if(!res.ok){
+      if(res.status === 404){
+        throw new Error("NOT_FOUND");
+      }
+      throw new Error("查询失败（" + res.status + "）");
+    }
+    const data = await res.json();
+    const entries = Array.isArray(data) ? data.slice() : [];
+
+    // 同一个词可能有多个"同形词条"（比如 school 既有"学校"也有"鱼群"），
+    // 释义数量更多的词条通常是更常用的那个义项，优先展示
+    const countDefs = (e) => (e.meanings || []).reduce((n,m) => n + (m.definitions ? m.definitions.length : 0), 0);
+    entries.sort((a,b) => countDefs(b) - countDefs(a));
+
+    const senses = [];
+    for(const entry of entries){
+      for(const m of (entry.meanings || [])){
+        if(senses.length >= 4) break;
+        const d0 = (m.definitions && m.definitions[0]) || {};
+        senses.push({
+          pos: m.partOfSpeech || "",
+          definition: d0.definition || "",
+          example: d0.example || ""
+        });
+      }
+      if(senses.length >= 4) break;
+    }
+
+    const firstPhonetic = entries.map(e => e.phonetic || ((e.phonetics||[]).find(p=>p.text)||{}).text).find(Boolean) || "";
+    const firstExample = senses.map(s => s.example).find(Boolean) || "";
+
+    const result = {
+      pos: senses.map(s => s.pos).filter(Boolean).join(" / "),
+      definition: senses.map(s => "[" + s.pos + "] " + s.definition).join("\n") || "（暂无释义）",
+      example: firstExample,
+      phonetic: firstPhonetic
+    };
+    state.defCache[key] = result;
+    return result;
+  }
+
+  /* ---------- main flow ---------- */
+  el.transcribeBtn.addEventListener("click", async () => {
+    if(!selectedFile) return;
+    el.transcribeBtn.disabled = true;
+    currentReferenceText = el.referenceText.value.trim();
+    state.segments = [];
+    renderTranscript();
+    setStatus("正在准备语音识别模型（第一次使用需要下载，请保持网络连接）…");
+
+    currentHistoryId = "h_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8);
+    async function persistProgress(done){
+      await storeSet("history_" + currentHistoryId, JSON.stringify({
+        id: currentHistoryId,
+        fileName: selectedFile.name,
+        segments: state.segments,
+        referenceText: currentReferenceText,
+        createdAt: Date.now(),
+        incomplete: !done
+      }));
+    }
+
+    try{
+      const transcriber = await getAsrPipeline();
+      setStatus("正在解码音频…");
+      const { data, sampleRate, duration } = await decodeAudioToMono16k(selectedFile);
+      const chunks = sliceAudioChunks(data, sampleRate, CHUNK_SECONDS);
+      const totalMin = (duration/60).toFixed(1);
+
+      for(let i=0;i<chunks.length;i++){
+        const chunk = chunks[i];
+        const doneMin = (chunk.startTime/60).toFixed(1);
+        setStatus("正在识别语音内容…已处理 " + doneMin + " / " + totalMin + " 分钟（第 " + (i+1) + "/" + chunks.length + " 段），请勿关闭页面…");
+
+        const words = await transcribeChunk(transcriber, chunk.data);
+        const newSentences = wordsToSentences(words, chunk.startTime);
+
+        if(newSentences.length > 0){
+          setStatus("正在翻译第 " + (i+1) + "/" + chunks.length + " 段…", "ok");
+          const zhList = await translateSentences(newSentences.map(s => s.text));
+          newSentences.forEach((s,idx) => s.zh = zhList[idx]);
+          state.segments = state.segments.concat(newSentences);
+          renderTranscript();
+          await persistProgress(false);
+          await renderHistoryList();
+        }
+        // 释放这一段的中间数据，减轻下一段处理时的内存压力
+        chunk.data = null;
+      }
+
+      if(state.segments.length === 0){
+        setStatus("没有识别到有效内容，请换一段更清晰的音频试试。", "error");
+        el.transcribeBtn.disabled = false;
+        return;
+      }
+
+      await persistProgress(true);
+      await renderHistoryList();
+      setStatus("完成！共 " + state.segments.length + " 句。点击句首圆形按钮播放原句，点击任意单词查看英文释义。", "ok");
+      if(currentReferenceText){
+        el.refToggle.hidden = false;
+        el.refContent.textContent = currentReferenceText;
+      }
+    }catch(err){
+      console.error(err);
+      let msg = err.message || String(err);
+      if(/Failed to fetch|NetworkError|network/i.test(msg)){
+        msg = "网络请求失败：" + msg + "。如果你是在 Claude 网页里打开的这个页面，当前沙盒环境可能限制了对外部资源（模型下载/翻译接口）的访问——请把这个 HTML 文件下载到本地，用浏览器直接打开（双击运行），这样就不受限制了。";
+      }
+      if(state.segments.length > 0){
+        msg += "（不过前面已经识别完成的 " + state.segments.length + " 句已经保存下来了，可以在\u201c历史记录\u201d里找到，不会丢失。）";
+        await persistProgress(false);
+        await renderHistoryList();
+      }
+      setStatus(msg, "error");
+    }finally{
+      el.transcribeBtn.disabled = false;
+    }
+  });
+
+  /* ---------- history panel ---------- */
+  async function renderHistoryList(){
+    const keys = await storeList("history_");
+    const items = [];
+    for(const k of keys){
+      const raw = await storeGet(k);
+      if(raw){ try{ items.push(JSON.parse(raw)); }catch(e){} }
+    }
+    items.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+    if(items.length === 0){
+      el.historyList.innerHTML = '<div class="empty">还没有历史记录。识别完成一段音频后会自动保存在这里，下次可以直接点开，不用重新识别。</div>';
+      return;
+    }
+    el.historyList.innerHTML = items.map(it => {
+      const d = new Date(it.createdAt);
+      const dateStr = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+      return `
+        <div class="vocab-item">
+          <div class="vw">${escapeHtml(it.fileName||"未命名音频")}</div>
+          <div class="vdef">${(it.segments||[]).length} 句 · ${dateStr}${it.referenceText ? " · 含参考字幕" : ""}</div>
+          <div class="vactions">
+            <button class="btn-ghost btn-small" data-load="${it.id}">打开</button>
+            <button class="btn-ghost btn-small" data-delhist="${it.id}">删除</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+    el.historyList.querySelectorAll("[data-load]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const raw = await storeGet("history_" + btn.dataset.load);
+        if(!raw) return;
+        const it = JSON.parse(raw);
+        state.segments = it.segments || [];
+        currentReferenceText = it.referenceText || "";
+        currentHistoryId = it.id;
+        el.referenceText.value = currentReferenceText;
+        renderTranscript();
+        el.playerBar.hidden = true;
+        el.refToggle.hidden = !currentReferenceText;
+        if(currentReferenceText) el.refContent.textContent = currentReferenceText;
+        setStatus("已从历史记录打开「" + (it.fileName||"") + "」（此时没有对应的音频文件，播放功能不可用，仅可查看文字与查词）。", "ok");
+        closeHistoryPanel();
+      });
+    });
+    el.historyList.querySelectorAll("[data-delhist]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await storeDelete("history_" + btn.dataset.delhist);
+        renderHistoryList();
+      });
+    });
+  }
+  function openHistoryPanel(){ el.historyOverlay.hidden = false; el.historyPanel.hidden = false; }
+  function closeHistoryPanel(){ el.historyOverlay.hidden = true; el.historyPanel.hidden = true; }
+  el.historyToggle.addEventListener("click", openHistoryPanel);
+  el.historyClose.addEventListener("click", closeHistoryPanel);
+  el.historyOverlay.addEventListener("click", closeHistoryPanel);
+
+  /* ---------- reference subtitle panel ---------- */
+  function openRefPanel(){ el.refOverlay.hidden = false; el.refPanel.hidden = false; }
+  function closeRefPanel(){ el.refOverlay.hidden = true; el.refPanel.hidden = true; }
+  el.refToggle.addEventListener("click", openRefPanel);
+  el.refClose.addEventListener("click", closeRefPanel);
+  el.refOverlay.addEventListener("click", closeRefPanel);
+
+  function renderTranscript(){
+    el.transcript.innerHTML = "";
+    state.segments.forEach((seg, idx) => {
+      const row = document.createElement("div");
+      row.className = "sentence";
+      row.dataset.idx = idx;
+
+      const timeCol = document.createElement("div");
+      timeCol.className = "s-time";
+      const playBtn = document.createElement("button");
+      playBtn.className = "play-btn";
+      playBtn.innerHTML = "&#9658;";
+      playBtn.setAttribute("aria-label", "播放这句");
+      playBtn.addEventListener("click", () => playSegment(idx));
+      const ts = document.createElement("div");
+      ts.className = "s-ts";
+      ts.textContent = formatTime(seg.start);
+      timeCol.appendChild(playBtn);
+      timeCol.appendChild(ts);
+
+      const body = document.createElement("div");
+      body.className = "s-body";
+      const enP = document.createElement("div");
+      enP.className = "s-en";
+      enP.innerHTML = tokenizeSentence(seg.text);
+      const zhP = document.createElement("div");
+      zhP.className = "s-zh zh-hidden";
+      zhP.dataset.zh = seg.zh || "（暂无翻译）";
+      zhP.textContent = "点击显示中文";
+      zhP.addEventListener("click", () => toggleZh(zhP));
+
+      body.appendChild(enP);
+      body.appendChild(zhP);
+      row.appendChild(timeCol);
+      row.appendChild(body);
+      el.transcript.appendChild(row);
+    });
+    markSavedWordsInDom();
+  }
+
+  function toggleZh(node){
+    const hidden = node.classList.contains("zh-hidden");
+    if(hidden){
+      node.textContent = node.dataset.zh;
+      node.classList.remove("zh-hidden");
+    }else{
+      node.textContent = "点击显示中文";
+      node.classList.add("zh-hidden");
+    }
+  }
+
+  function tokenizeSentence(text){
+    return text.replace(/[A-Za-z']+/g, (w) => {
+      const safe = w.replace(/"/g,"&quot;");
+      return '<span class="word" data-w="' + safe + '" tabindex="0">' + w + '</span>';
+    });
+  }
+
+  function formatTime(sec){
+    const m = Math.floor(sec/60);
+    const s = Math.floor(sec%60);
+    return m + ":" + String(s).padStart(2,"0");
+  }
+
+  function playSegment(idx){
+    const seg = state.segments[idx];
+    if(!seg) return;
+    document.querySelectorAll(".sentence.playing").forEach(n => n.classList.remove("playing"));
+    document.querySelectorAll(".play-btn.playing").forEach(n => n.classList.remove("playing"));
+    const row = el.transcript.querySelector('.sentence[data-idx="'+idx+'"]');
+    if(row){ row.classList.add("playing"); row.querySelector(".play-btn").classList.add("playing"); }
+
+    el.player.currentTime = seg.start;
+    el.player.play();
+
+    const onTime = () => {
+      if(el.player.currentTime >= seg.end - 0.02){
+        el.player.pause();
+        el.player.removeEventListener("timeupdate", onTime);
+        if(row){ row.classList.remove("playing"); row.querySelector(".play-btn").classList.remove("playing"); }
+      }
+    };
+    el.player.addEventListener("timeupdate", onTime);
+  }
+
+  /* ---------- word click -> bottom sheet ---------- */
+  el.transcript.addEventListener("click", (e) => {
+    const t = e.target.closest(".word");
+    if(!t) return;
+    const idx = t.closest(".sentence").dataset.idx;
+    openWordSheet(t.dataset.w, state.segments[idx].text);
+  });
+  el.transcript.addEventListener("keydown", (e) => {
+    if(e.key === "Enter" && e.target.classList.contains("word")){
+      const idx = e.target.closest(".sentence").dataset.idx;
+      openWordSheet(e.target.dataset.w, state.segments[idx].text);
+    }
+  });
+
+  async function openWordSheet(word, sentence){
+    state.currentSheetWord = word;
+    state.currentSentenceContext = sentence;
+    el.sheetOverlay.hidden = false;
+    el.wordSheet.hidden = false;
+    el.wordSheet.innerHTML = '<div class="loading-dots">正在查询 "' + escapeHtml(word) + '" 的中英文释义…</div>';
+
+    let def = null, defErr = null;
+    try{ def = await defineWord(word); }catch(e){ defErr = e; }
+    const zhWord = await translateWord(word);
+
+    if(def){
+      renderWordSheet(word, def, zhWord);
+      return;
+    }
+
+    const notFound = defErr && defErr.message === "NOT_FOUND";
+    const isSaved = state.savedWords.has(word.toLowerCase());
+    el.wordSheet.innerHTML =
+      '<h3>' + escapeHtml(word) + '</h3>' +
+      (zhWord ? '<div class="zh-gloss">' + escapeHtml(zhWord) + '</div>' : '') +
+      '<div class="def" style="color:var(--danger)">' +
+        (notFound ? "英文词典里没有收录这个词（可能是变形/专有名词/口语词），上面是翻译引擎给出的中文意思。" : "查询失败：" + escapeHtml((defErr && defErr.message) || String(defErr))) +
+      '</div>' +
+      '<div class="sheet-actions">' +
+        '<button class="btn-ghost" id="sheetCloseBtn">关闭</button>' +
+        '<button class="btn-primary" id="sheetSaveBtn">' + (isSaved ? "已在生词本（点击移除）" : "仍然加入生词本") + '</button>' +
+      '</div>';
+    document.getElementById("sheetCloseBtn").addEventListener("click", closeSheet);
+    document.getElementById("sheetSaveBtn").addEventListener("click", async () => {
+      const emptyDef = { pos:"", definition:"", example:"" };
+      if(isSaved){ await removeFromVocab(word); } else { await addToVocab(word, emptyDef, sentence, zhWord); }
+      markSavedWordsInDom();
+      await refreshVocabBadgeAndSet();
+      renderVocabList();
+      closeSheet();
+    });
+  }
+
+  function renderWordSheet(word, def, zhWord){
+    const isSaved = state.savedWords.has(word.toLowerCase());
+    el.wordSheet.innerHTML =
+      '<h3>' + escapeHtml(word) + '</h3>' +
+      (zhWord ? '<div class="zh-gloss">' + escapeHtml(zhWord) + '</div>' : '') +
+      (def.phonetic ? '<div class="phonetic">' + escapeHtml(def.phonetic) + '</div>' : '') +
+      '<div class="pos">' + escapeHtml(def.pos || "") + '</div>' +
+      '<div class="def">' + escapeHtml(def.definition || "") + '</div>' +
+      (def.example ? '<div class="ex">e.g. ' + escapeHtml(def.example) + '</div>' : '') +
+      (state.currentSentenceContext ? '<div class="ex" style="opacity:0.7;">本句原文："' + escapeHtml(state.currentSentenceContext) + '"</div>' : '') +
+      '<div class="sheet-actions">' +
+        '<button class="btn-ghost" id="sheetCloseBtn">关闭</button>' +
+        '<button class="btn-primary" id="sheetSaveBtn">' + (isSaved ? "已在生词本（点击移除）" : "+ 加入生词本") + '</button>' +
+      '</div>';
+    document.getElementById("sheetCloseBtn").addEventListener("click", closeSheet);
+    document.getElementById("sheetSaveBtn").addEventListener("click", async () => {
+      if(isSaved){
+        await removeFromVocab(word);
+      }else{
+        await addToVocab(word, def, state.currentSentenceContext || "", zhWord);
+      }
+      renderWordSheet(word, def, zhWord);
+      markSavedWordsInDom();
+      await refreshVocabBadgeAndSet();
+      renderVocabList();
+    });
+  }
+
+  function closeSheet(){
+    el.sheetOverlay.hidden = true;
+    el.wordSheet.hidden = true;
+  }
+  el.sheetOverlay.addEventListener("click", closeSheet);
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  /* ---------- vocab notebook ---------- */
+  async function addToVocab(word, def, sentence, zhWord){
+    const key = safeKey(word);
+    const payload = JSON.stringify({
+      word, pos: def.pos || "", definition: def.definition || "", example: def.example || "",
+      zh: zhWord || "", sentence: sentence || "", addedAt: Date.now()
+    });
+    await storeSet(key, payload);
+    state.savedWords.add(word.toLowerCase());
+  }
+  async function removeFromVocab(word){
+    await storeDelete(safeKey(word));
+    state.savedWords.delete(word.toLowerCase());
+  }
+
+  async function refreshVocabBadgeAndSet(){
+    const keys = await storeList("vocab_");
+    state.savedWords = new Set();
+    for(const k of keys){
+      const raw = await storeGet(k);
+      if(raw){
+        try{
+          const obj = JSON.parse(raw);
+          state.savedWords.add((obj.word||"").toLowerCase());
+        }catch(e){}
+      }
+    }
+    el.vocabCount.textContent = state.savedWords.size;
+  }
+
+  function markSavedWordsInDom(){
+    document.querySelectorAll(".word").forEach(node => {
+      if(state.savedWords.has((node.dataset.w||"").toLowerCase())){
+        node.classList.add("saved");
+      }else{
+        node.classList.remove("saved");
+      }
+    });
+  }
+
+  async function renderVocabList(){
+    const keys = await storeList("vocab_");
+    const items = [];
+    for(const k of keys){
+      const raw = await storeGet(k);
+      if(raw){
+        try{ items.push(JSON.parse(raw)); }catch(e){}
+      }
+    }
+    items.sort((a,b) => (b.addedAt||0) - (a.addedAt||0));
+    if(items.length === 0){
+      el.vocabList.innerHTML = '<div class="empty">还没有生词。点句子里的单词，选"加入生词本"即可收录。</div>';
+      return;
+    }
+    el.vocabList.innerHTML = items.map(it => `
+      <div class="vocab-item">
+        <div><span class="vw">${escapeHtml(it.word)}</span><span class="vpos">${escapeHtml(it.pos||"")}</span></div>
+        ${it.zh ? `<div class="vdef" style="color:var(--teal-dark);font-weight:600;">${escapeHtml(it.zh)}</div>` : ""}
+        <div class="vdef">${escapeHtml(it.definition||"")}</div>
+        ${it.sentence ? `<div class="vctx">"${escapeHtml(it.sentence)}"</div>` : ""}
+        <div class="vactions"><button class="btn-ghost btn-small" data-remove="${escapeHtml(it.word)}">移除</button></div>
+      </div>
+    `).join("");
+    el.vocabList.querySelectorAll("[data-remove]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await removeFromVocab(btn.dataset.remove);
+        markSavedWordsInDom();
+        await refreshVocabBadgeAndSet();
+        renderVocabList();
+      });
+    });
+  }
+
+  el.vocabToggle.addEventListener("click", async () => {
+    el.vocabOverlay.hidden = false;
+    el.vocabPanel.hidden = false;
+    await renderVocabList();
+  });
+  function closeVocab(){
+    el.vocabOverlay.hidden = true;
+    el.vocabPanel.hidden = true;
+  }
+  el.vocabClose.addEventListener("click", closeVocab);
+  el.vocabOverlay.addEventListener("click", closeVocab);
+
+  el.exportVocab.addEventListener("click", async () => {
+    const keys = await storeList("vocab_");
+    const items = [];
+    for(const k of keys){
+      const raw = await storeGet(k);
+      if(raw){ try{ items.push(JSON.parse(raw)); }catch(e){} }
+    }
+    items.sort((a,b) => (a.word||"").localeCompare(b.word||""));
+    const lines = items.map(it =>
+      `${it.word}\t${it.zh||""}\t${it.pos||""}\t${it.definition||""}\t${it.example||""}\t${it.sentence||""}`
+    );
+    const content = "word\tzh\tpos\tdefinition\texample\tsentence\n" + lines.join("\n");
+    const blob = new Blob([content], {type:"text/plain;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "vocab_notebook.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
+
+})();
+</script>
+</body>
+</html>
